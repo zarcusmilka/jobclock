@@ -63,6 +63,49 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         websocket_api.async_register_command(hass, ws_get_data)
         websocket_api.async_register_command(hass, ws_update_entry)
         hass.data[DOMAIN]["jobclock_api_registered"] = True
+
+    # Register Panel & Static Path
+    if "jobclock_panel_registered" not in hass.data[DOMAIN]:
+        # Serve the 'www' directory
+        path = hass.config.path("custom_components", "jobclock", "www")
+        hass.http.register_static_path("/jobclock_static", path)
+        
+        # Register the panel
+        # Note: We point to the JS file. The frontend will load it.
+        # The web component name MUST be "jobclock-panel" (defined in JS).
+        hass.components.frontend.async_register_panel(
+            hass,
+            "jobclock",
+            "jobclock-panel", # This is the webcomponent tag name
+            sidebar_title="JobClock",
+            sidebar_icon="mdi:briefcase-clock",
+            frontend_url_path="jobclock",
+            config=None,
+            require_admin=False,
+            # The 'url_path' or 'url' argument tells HA where to load the JS from.
+            # Only for built-in panels? 
+            # For custom panels we use 'webcomponent_name' usually if registered via configuration.yaml.
+            # Programmatically: 'js_url' might be needed or 'module_url'.
+            # Let's check signature. 
+            # In recent HA: async_register_panel(hass, component_name, frontend_url_path, ...)
+            # Actually simplest is:
+        )
+        # Re-reading HA dev docs for programmatic custom panel:
+        # It's safest to rely on 'frontend.async_register_panel' with 'config' dict pointing to module_url.
+        hass.components.frontend.async_register_panel(
+             hass,
+             "jobclock",
+             "jobclock-panel",
+             sidebar_title="JobClock",
+             sidebar_icon="mdi:briefcase-clock",
+             frontend_url_path="jobclock",
+             config={"_panel_custom": {
+                 "name": "jobclock-panel",
+                 "module_url": "/jobclock_static/jobclock-panel.js"
+             }}
+        )
+        
+        hass.data[DOMAIN]["jobclock_panel_registered"] = True
     
     instance = JobClockInstance(hass, entry)
     await instance.async_initialize()
