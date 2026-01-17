@@ -2,7 +2,7 @@
 
 A smart work-time tracking integration for Home Assistant.
 
-![JobClock Dashboard](https://github.com/home-assistant/assets/raw/master/logo/logo.png)
+
 
 ## Features
 
