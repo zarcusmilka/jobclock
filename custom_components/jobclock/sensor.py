@@ -42,3 +42,10 @@ class JobClockTimeSensor(SensorEntity):
     def native_value(self):
         """Return the state of the sensor."""
         return self._instance.get_time_today()
+
+    @property
+    def extra_state_attributes(self):
+        """Return the state attributes."""
+        return {
+            "entry_id": self._entry.entry_id
+        }

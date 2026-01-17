@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta, date as datetime_date
 import asyncio
+import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform, STATE_ON, STATE_HOME, EVENT_HOMEASSISTANT_STOP
@@ -12,6 +13,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_state_change_event, async_track_point_in_time
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
+from homeassistant.components import websocket_api
 
 from .const import (
     DOMAIN,
@@ -21,26 +23,60 @@ from .const import (
     CONF_ENTRY_DELAY,
     CONF_EXIT_DELAY,
     CONF_MIN_STAY,
+    CONF_DAILY_TARGET,
+    CONF_WORK_DAYS,
+    DEFAULT_DAILY_TARGET,
+    DEFAULT_WORK_DAYS,
+    DEFAULT_ENTRY_DELAY,
+    DEFAULT_EXIT_DELAY,
+    DEFAULT_MIN_STAY,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR]
-STORAGE_VERSION = 1
+STORAGE_VERSION = 2  # Updated for history
 STORAGE_KEY_TEMPLATE = "jobclock.{}"
+
+# Websocket API Schemas
+WS_GET_DATA_SCHEMA = websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend({
+    vol.Required("type"): "jobclock/get_data",
+    vol.Required("entry_id"): str,
+    vol.Required("start_date"): str,
+    vol.Required("end_date"): str,
+})
+
+WS_UPDATE_ENTRY_SCHEMA = websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend({
+    vol.Required("type"): "jobclock/update_entry",
+    vol.Required("entry_id"): str,
+    vol.Required("date"): str,
+    vol.Optional("duration"): vol.Any(int, float, None),
+    vol.Optional("status_type"): str, # 'work', 'sick', 'vacation'
+})
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up JobClock from a config entry."""
     hass.data.setdefault(DOMAIN, {})
+    
+    # Register Websocket API only once
+    if "jobclock_api_registered" not in hass.data[DOMAIN]:
+        websocket_api.async_register_command(hass, ws_get_data)
+        websocket_api.async_register_command(hass, ws_update_entry)
+        hass.data[DOMAIN]["jobclock_api_registered"] = True
     
     instance = JobClockInstance(hass, entry)
     await instance.async_initialize()
     
     hass.data[DOMAIN][entry.entry_id] = instance
 
+    entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     return True
+
+async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Reload the config entry when options change."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
@@ -49,6 +85,48 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await instance.async_shutdown()
 
     return unload_ok
+
+@websocket_api.websocket_command(WS_GET_DATA_SCHEMA)
+@websocket_api.async_response
+async def ws_get_data(hass, connection, msg):
+    """Handle get data command."""
+    entry_id = msg["entry_id"]
+    instance = hass.data[DOMAIN].get(entry_id)
+    if not instance:
+        connection.send_error(msg["id"], "instance_not_found", "Instance not found")
+        return
+
+    start_date = dt_util.parse_date(msg["start_date"])
+    end_date = dt_util.parse_date(msg["end_date"])
+    
+    if not start_date or not end_date:
+        connection.send_error(msg["id"], "invalid_date", "Invalid dates")
+        return
+
+    data = await instance.get_history_range(start_date, end_date)
+    connection.send_result(msg["id"], data)
+
+@websocket_api.websocket_command(WS_UPDATE_ENTRY_SCHEMA)
+@websocket_api.async_response
+async def ws_update_entry(hass, connection, msg):
+    """Handle update entry command."""
+    entry_id = msg["entry_id"]
+    instance = hass.data[DOMAIN].get(entry_id)
+    if not instance:
+        connection.send_error(msg["id"], "instance_not_found", "Instance not found")
+        return
+
+    date_obj = dt_util.parse_date(msg["date"])
+    if not date_obj:
+        connection.send_error(msg["id"], "invalid_date", "Invalid date")
+        return
+
+    duration = msg.get("duration")
+    status_type = msg.get("status_type")
+    
+    await instance.update_history_day(date_obj, duration=duration, status_type=status_type)
+    connection.send_result(msg["id"], {"status": "ok"})
+
 
 class JobClockInstance:
     """Manages the logic for a single JobClock instance."""
@@ -59,38 +137,42 @@ class JobClockInstance:
         self.entry = entry
         self.name = entry.title
         
+        # Determine config source (options override data)
+        self.get_conf = lambda k, default: entry.options.get(k, entry.data.get(k, default))
+        
         self.person_entity = entry.data[CONF_PERSON]
         self.zone_entity = entry.data[CONF_ZONE]
         self.switch_entity = entry.data[CONF_OFFICE_SWITCH]
         
-        self.entry_delay = timedelta(minutes=entry.data[CONF_ENTRY_DELAY])
-        self.exit_delay = timedelta(minutes=entry.data[CONF_EXIT_DELAY])
-        self.min_stay = timedelta(minutes=entry.data[CONF_MIN_STAY])
+        self.entry_delay = timedelta(minutes=self.get_conf(CONF_ENTRY_DELAY, DEFAULT_ENTRY_DELAY))
+        self.exit_delay = timedelta(minutes=self.get_conf(CONF_EXIT_DELAY, DEFAULT_EXIT_DELAY))
+        self.min_stay = timedelta(minutes=self.get_conf(CONF_MIN_STAY, DEFAULT_MIN_STAY))
+        
+        self.daily_target = self.get_conf(CONF_DAILY_TARGET, DEFAULT_DAILY_TARGET)
+        self.work_days = self.get_conf(CONF_WORK_DAYS, DEFAULT_WORK_DAYS)
 
         self._store = Store(hass, STORAGE_VERSION, STORAGE_KEY_TEMPLATE.format(entry.entry_id))
         
         # State
         self.is_working = False
         self.session_start: datetime | None = None
-        self.time_today: timedelta = timedelta()
+        
+        # History: "YYYY-MM-DD": {"duration": seconds, "type": "work"|"sick"|"vacation"}
+        self.history = {} 
         self.last_update_date: str | None = None
 
         # Internal
         self._listeners = []
         self._timer_remove = None
-        self._pending_state = None # True (Pending Active) or False (Pending Inactive)
+        self._pending_state = None
         self._pending_start_time: datetime | None = None
-        
         self._sensor_callbacks = set()
 
     async def async_initialize(self):
         """Initialize logic and restore state."""
         await self._load_data()
-        
-        # Determine current condition state
         await self._update_logic(init=True)
 
-        # Listen for changes
         self._listeners.append(
             async_track_state_change_event(
                 self.hass, 
@@ -98,13 +180,23 @@ class JobClockInstance:
                 self._handle_state_change
             )
         )
-        
-        # Reset at midnight (handled by scheduled checks or sensor update, strictly we should schedule it)
-        # For simplicity, we check date on every update and event.
-        
-        # Register shutdown
         self._listeners.append(
             self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, self._async_save_data)
+        )
+        # Periodic save (every hour? or just close enough on stop)
+        # We also listen for time changes to update "duration today" visually?
+        # Ideally the sensor updates every minute if working.
+        self._listeners.append(
+            async_track_point_in_time(self.hass, self._update_periodic, dt_util.now() + timedelta(minutes=1))
+        )
+
+    async def _update_periodic(self, now):
+        """Periodic update."""
+        if self.is_working:
+             self._notify_sensors()
+        # Schedule next
+        self._listeners.append(
+             async_track_point_in_time(self.hass, self._update_periodic, now + timedelta(minutes=1))
         )
 
     async def async_shutdown(self):
@@ -116,15 +208,10 @@ class JobClockInstance:
         await self._async_save_data()
 
     def register_callback(self, callback_func):
-        """Register callback for sensor updates."""
         self._sensor_callbacks.add(callback_func)
-        
     def remove_callback(self, callback_func):
-        """Remove callback."""
         self._sensor_callbacks.discard(callback_func)
-
     def _notify_sensors(self):
-        """Update sensors."""
         for cb in self._sensor_callbacks:
             cb()
 
@@ -132,220 +219,204 @@ class JobClockInstance:
         """Load data from storage."""
         data = await self._store.async_load()
         if data:
-            self.last_update_date = data.get("date")
-            self.time_today = timedelta(seconds=data.get("seconds_today", 0))
+            self.history = data.get("history", {})
+            
+            # Legacy migration (Version 1 had "date", "seconds_today")
+            if "history" not in data and "date" in data:
+                # Migrate single day
+                d = data["date"]
+                self.history[d] = {
+                    "duration": data.get("seconds_today", 0),
+                    "type": "work"
+                }
+            
+            self.last_update_date = dt_util.now().date().isoformat()
+            
             self.is_working = data.get("is_working", False)
             if self.is_working and data.get("session_start"):
                 self.session_start = dt_util.parse_datetime(data["session_start"])
             
-            # Check for day reset on load
             self._check_daily_reset()
 
     async def _async_save_data(self, event=None):
         """Save data to storage."""
         data = {
-            "date": dt_util.now().date().isoformat(),
-            "seconds_today": self.time_today.total_seconds(),
+            "history": self.history,
             "is_working": self.is_working,
             "session_start": self.session_start.isoformat() if self.session_start else None
         }
         await self._store.async_save(data)
 
     def _check_daily_reset(self):
-        """Check if day has changed and reset if needed."""
+        """Check if day has changed."""
         now = dt_util.now()
         today_str = now.date().isoformat()
         
-        if self.last_update_date != today_str:
-            _LOGGER.debug(f"[{self.name}] Daily reset: {self.last_update_date} -> {today_str}")
-            # If we were working overnight, we might want to split the session. 
-            # Requirement says "Reset um 00:00 Uhr".
-            # Simple approach: Reset counter. If working, new session counts for new day from 00:00?
-            # Or just reset the accumulated TOTAL. The session continues.
-            # If session is active, the accumulated part BEFORE midnight is lost? No, just stored in previous day?
-            # User wants "Summiere die Zeit für den aktuellen Tag".
-            # So simpler: time_today = 0.
+        # If we crossed midnight, simple check:
+        # If session is active, splitting is hard. We won't split session automatically here for now.
+        # But we ensure we are writing to the correct "today" bucket in history.
+        # History keys are simply dates.
+        pass
+
+    def get_time_today_seconds(self) -> int:
+        """Return total seconds for today."""
+        today_str = dt_util.now().date().isoformat()
+        day_data = self.history.get(today_str, {})
+        total = day_data.get("duration", 0)
+        
+        if self.is_working and self.session_start:
+            # Add current session
+            total += (dt_util.now() - self.session_start).total_seconds()
             
-            # If currently working, we need to calculate partial time for yesterday?
-            # For simplicity per spec "Reset at 00:00", we just reset the sum.
-            # The *current session duration* that is accumulating right now needs to be handled.
-            # Usually: time_today is "historical sum" + "current session duration if active".
-            # We will store `time_today` as ONLY the closed sessions sum.
-            # And sensors calculate `time_today + (now - session_start)` dynamic.
-            # So on reset, we just set time_today = 0. 
-            # And if session_start is < midnight, we ideally trigger a cut.
-            # But "Reset at 00:00" usually implies standard daily stats.
-            
-            # Let's adjust self.time_today to 0.
-            # Ideally we should adjust session_start to midnight if it was before midnight, 
-            # to avoid adding yesterday's hours to today.
-            
-            if self.is_working and self.session_start and self.session_start.date() < now.date():
-                # Session started yesterday.
-                # We reset start to midnight today so we only count today's hours.
-                midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
-                self.session_start = midnight
-                
-            self.time_today = timedelta(0)
-            self.last_update_date = today_str
-            self._async_save_data() # Save the reset
+        return int(total)
 
     def get_time_today(self) -> str:
         """Return HH:MM string for today."""
-        self._check_daily_reset()
-        
-        total = self.time_today
-        if self.is_working and self.session_start:
-            total += (dt_util.now() - self.session_start)
-            
-        total_seconds = int(total.total_seconds())
+        total_seconds = self.get_time_today_seconds()
         hours = total_seconds // 3600
         minutes = (total_seconds % 3600) // 60
         return f"{hours:02d}:{minutes:02d}"
 
+    async def get_history_range(self, start_date: datetime_date, end_date: datetime_date):
+        """Get data for a date range."""
+        result = []
+        current = start_date
+        while current <= end_date:
+            d_str = current.isoformat()
+            data = self.history.get(d_str, {"duration": 0, "type": "work"})
+            
+            # If "today", add live
+            if current == dt_util.now().date() and self.is_working:
+                live_seconds = self.get_time_today_seconds() # includes stored + session
+                # We return the LIVE view
+                data = data.copy()
+                data["duration"] = live_seconds
+            
+            # Calculate Delta
+            # Target?
+            week_day_short = current.strftime("%a").lower()
+            target = 0
+            if data.get("type", "work") == "work":
+                 if week_day_short in self.work_days:
+                     target = self.daily_target * 3600
+            
+            # If vacation/sick, maybe target is 0 or assumed full?
+            # Usually Vacation = Target met.
+            if data.get("type") in ["vacation", "sick"]:
+                # If configured to count as work?
+                # TimeGoat logic: Vacation counts as Target Hours.
+                if week_day_short in self.work_days:
+                    data["duration"] = self.daily_target * 3600 # Auto-fill
+                    target = self.daily_target * 3600
+            
+            delta = data["duration"] - target
+            
+            result.append({
+                "date": d_str,
+                "duration": data["duration"],
+                "type": data.get("type", "work"),
+                "target": target,
+                "delta": delta
+            })
+            current += timedelta(days=1)
+        return result
+
+    async def update_history_day(self, date_obj: datetime_date, duration=None, status_type=None):
+        """Update history manually."""
+        d_str = date_obj.isoformat()
+        if d_str not in self.history:
+            self.history[d_str] = {"duration": 0, "type": "work"}
+            
+        if duration is not None:
+            self.history[d_str]["duration"] = float(duration)
+        if status_type is not None:
+            self.history[d_str]["type"] = status_type
+            
+        await self._async_save_data()
+        self._notify_sensors()
+
+    # --- Logic Conditions (Same as before) ---
     def check_conditions(self) -> bool:
-        """Check if 'working' conditions are met."""
-        # 1. Home Office Switch
         sw_state = self.hass.states.get(self.switch_entity)
         if sw_state and sw_state.state == STATE_ON:
             return True
-            
-        # 2. Person in Zone
         person_state = self.hass.states.get(self.person_entity)
         if person_state:
-            # Person state is usually 'home', 'not_home', or name of zone
-            # Zone state: we need to check if person is in the specific zone.
-            # If zone is 'zone.work', person state should be 'working' or the friendly name? 
-            # Actually person state is the zone ID if in a zone (e.g. 'work').
-            # But the zone entity name is like 'zone.work'. 
-            # The state of 'zone.work' is the number of persons.
-            # We compare person state to the zone friendly name? No, zone entity ID matching is better?
-            # Actually person state IS the zone name (friendly name) OR 'home'/'not_home'.
-            # BUT efficient way: Check coordinate proximity or just state string match.
-            # Config provides 'zone.work'.
-            # To be robust:
             zone_state = self.hass.states.get(self.zone_entity)
             if zone_state and person_state.state == zone_state.name:
                 return True
-            # Also check if person state is literally the zone entity id (rare but possible in some setups)
-            # Or if the config['work_zone'] friendly name matches person state.
-            
         return False
 
     async def _handle_state_change(self, event):
-        """Handle state changes."""
         await self._update_logic()
 
     async def _update_logic(self, init=False):
-        """Core logic state machine."""
         condition_met = self.check_conditions()
         now = dt_util.now()
         
         if self._timer_remove:
-            # Timer running. Check if condition flip invalidated it.
-            # Logic: We are waiting for X. If condition changes back, cancel wait.
             if self._pending_state is True and not condition_met:
-                # We were waiting to START, but condition lost. Cancel.
-                _LOGGER.debug(f"[{self.name}] Entry condition lost during delay.")
                 self._timer_remove()
                 self._timer_remove = None
                 self._pending_state = None
             elif self._pending_state is False and condition_met:
-                # We were waiting to END, but condition returned. Cancel.
-                # Effectively "debounce" exit.
-                _LOGGER.debug(f"[{self.name}] Exit condition regained during delay.")
                 self._timer_remove()
                 self._timer_remove = None
                 self._pending_state = None
         
-        # If no timer running, check if we need to start one
         if not self._timer_remove:
             if condition_met and not self.is_working:
-                # Start Entry Delay
                 delay = self.entry_delay.total_seconds()
                 if delay <= 0:
                     await self._set_active(now)
                 else:
-                    _LOGGER.debug(f"[{self.name}] Starting entry delay {delay}s")
                     self._pending_state = True
                     self._timer_remove = async_track_point_in_time(
                         self.hass, self._timer_callback, now + self.entry_delay
                     )
-            
             elif not condition_met and self.is_working:
-                # Start Exit Delay
                 delay = self.exit_delay.total_seconds()
                 if delay <= 0:
                      await self._set_inactive(now)
                 else:
-                    _LOGGER.debug(f"[{self.name}] Starting exit delay {delay}s")
                     self._pending_state = False
-                    self._pending_start_time = now # Provide "actual exit time" for retro-correction
+                    self._pending_start_time = now
                     self._timer_remove = async_track_point_in_time(
                         self.hass, self._timer_callback, now + self.exit_delay
                     )
-        
         self._notify_sensors()
 
     @callback
     def _timer_callback(self, now):
-        """Timer finished."""
         self._timer_remove = None
         target_state = self._pending_state
         self._pending_state = None
-        
-        # Re-check condition just in case? 
-        # Actually logic says: if we reached here, condition didn't flip back (handled in update_logic).
-        # So proceed.
-        
         if target_state is True:
-            # Entry confirmed
             self.hass.async_create_task(self._set_active(now))
         elif target_state is False:
-            # Exit confirmed
-            # RETROACTIVE CORRECTION: use self._pending_start_time
             actual_end = self._pending_start_time or now
             self.hass.async_create_task(self._set_inactive(actual_end))
 
     async def _set_active(self, start_time: datetime):
-        """Transition to working."""
-        _LOGGER.info(f"[{self.name}] Status changed to ACTIVE at {start_time}")
         self.is_working = True
         self.session_start = start_time
-        
-        # Reset just in case date changed while inactive
-        self._check_daily_reset()
-        
         self._notify_sensors()
         await self._async_save_data()
 
     async def _set_inactive(self, end_time: datetime):
-        """Transition to inactive."""
-        _LOGGER.info(f"[{self.name}] Status changed to INACTIVE at {end_time}")
-        
         if not self.session_start:
              self.is_working = False
              self._notify_sensors()
              return
 
-        # Calculate duration
-        duration = end_time - self.session_start
+        duration = (end_time - self.session_start).total_seconds()
         
-        # Check Min Stay
-        if duration >= self.min_stay:
-            # Valid session
-            _LOGGER.info(f"[{self.name}] Session valid. Duration: {duration}")
+        if duration >= self.min_stay.total_seconds():
+            today_str = dt_util.now().date().isoformat()
+            if today_str not in self.history:
+                self.history[today_str] = {"duration": 0, "type": "work"}
             
-            # Handle crossing midnight during session?
-            # Implemented simple approach: add to today's total. 
-            # If session spanned days, strict accounting is hard without event log. 
-            # We assume user mostly works within a day or doesn't mind bulk add to end day.
-            # But wait, we did "reset" check. If reset happened mid-session, session_start was moved to midnight.
-            # So `duration` here is correct for "today's portion".
-            
-            self.time_today += duration
-        else:
-            _LOGGER.info(f"[{self.name}] Session discarded. Duration {duration} < {self.min_stay}")
+            self.history[today_str]["duration"] += duration
         
         self.is_working = False
         self.session_start = None

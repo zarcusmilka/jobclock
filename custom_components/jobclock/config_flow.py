@@ -14,6 +14,9 @@ from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
 )
 
 from .const import (
@@ -24,15 +27,28 @@ from .const import (
     CONF_ENTRY_DELAY,
     CONF_EXIT_DELAY,
     CONF_MIN_STAY,
+    CONF_DAILY_TARGET,
+    CONF_WORK_DAYS,
     DEFAULT_ENTRY_DELAY,
     DEFAULT_EXIT_DELAY,
     DEFAULT_MIN_STAY,
+    DEFAULT_DAILY_TARGET,
+    DEFAULT_WORK_DAYS,
+    WORK_DAYS_OPTIONS,
 )
 
 class JobClockConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for JobClock."""
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> config_entries.OptionsFlow:
+        """Create the options flow."""
+        return JobClockOptionsFlowHandler(config_entry)
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -79,7 +95,101 @@ class JobClockConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             min=0, max=120, mode=NumberSelectorMode.BOX, unit_of_measurement="min"
                         )
                     ),
+                    vol.Required(
+                        CONF_DAILY_TARGET, default=DEFAULT_DAILY_TARGET
+                    ): NumberSelector(
+                        NumberSelectorConfig(
+                            min=0, max=24, step=0.5, mode=NumberSelectorMode.BOX, unit_of_measurement="h"
+                        )
+                    ),
+                    vol.Required(
+                        CONF_WORK_DAYS, default=DEFAULT_WORK_DAYS
+                    ): SelectSelector(
+                        SelectSelectorConfig(
+                            options=[{"label": v, "value": k} for k, v in WORK_DAYS_OPTIONS.items()],
+                            multiple=True,
+                            mode=SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
                 }
             ),
             errors=errors,
+        )
+
+class JobClockOptionsFlowHandler(config_entries.OptionsFlow):
+    """Handle options for JobClock."""
+
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+        """Initialize options flow."""
+        self.config_entry = config_entry
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Manage the options."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        # Get current config or options
+        current_daily = self.config_entry.options.get(
+            CONF_DAILY_TARGET, self.config_entry.data.get(CONF_DAILY_TARGET, DEFAULT_DAILY_TARGET)
+        )
+        current_days = self.config_entry.options.get(
+            CONF_WORK_DAYS, self.config_entry.data.get(CONF_WORK_DAYS, DEFAULT_WORK_DAYS)
+        )
+        
+        # We allow editing other params too, ideally
+        current_entry_delay = self.config_entry.options.get(
+            CONF_ENTRY_DELAY, self.config_entry.data.get(CONF_ENTRY_DELAY, DEFAULT_ENTRY_DELAY)
+        )
+        current_exit_delay = self.config_entry.options.get(
+            CONF_EXIT_DELAY, self.config_entry.data.get(CONF_EXIT_DELAY, DEFAULT_EXIT_DELAY)
+        )
+        current_min_stay = self.config_entry.options.get(
+            CONF_MIN_STAY, self.config_entry.data.get(CONF_MIN_STAY, DEFAULT_MIN_STAY)
+        )
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_ENTRY_DELAY, default=current_entry_delay
+                    ): NumberSelector(
+                        NumberSelectorConfig(
+                            min=0, max=60, mode=NumberSelectorMode.BOX, unit_of_measurement="min"
+                        )
+                    ),
+                    vol.Required(
+                        CONF_EXIT_DELAY, default=current_exit_delay
+                    ): NumberSelector(
+                        NumberSelectorConfig(
+                            min=0, max=60, mode=NumberSelectorMode.BOX, unit_of_measurement="min"
+                        )
+                    ),
+                    vol.Required(
+                        CONF_MIN_STAY, default=current_min_stay
+                    ): NumberSelector(
+                        NumberSelectorConfig(
+                            min=0, max=120, mode=NumberSelectorMode.BOX, unit_of_measurement="min"
+                        )
+                    ),
+                    vol.Required(
+                        CONF_DAILY_TARGET, default=current_daily
+                    ): NumberSelector(
+                        NumberSelectorConfig(
+                            min=0, max=24, step=0.5, mode=NumberSelectorMode.BOX, unit_of_measurement="h"
+                        )
+                    ),
+                    vol.Required(
+                        CONF_WORK_DAYS, default=current_days
+                    ): SelectSelector(
+                        SelectSelectorConfig(
+                            options=[{"label": v, "value": k} for k, v in WORK_DAYS_OPTIONS.items()],
+                            multiple=True,
+                            mode=SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
+                }
+            ),
         )
