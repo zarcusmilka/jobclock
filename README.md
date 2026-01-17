@@ -1,6 +1,6 @@
 # JobClock for Home Assistant
 
-A smart work-time tracking integration for Home Assistant, inspired by "TimeGoat".
+A smart work-time tracking integration for Home Assistant.
 
 ![JobClock Dashboard](https://github.com/home-assistant/assets/raw/master/logo/logo.png)
 
