@@ -1,0 +1,11 @@
+{
+  "domain": "jobclock",
+  "name": "JobClock",
+  "codeowners": [],
+  "config_flow": true,
+  "documentation": "https://github.com/unknown/jobclock",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/unknown/jobclock/issues",
+  "requirements": [],
+  "version": "1.0.0"
+}
