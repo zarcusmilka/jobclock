@@ -158,10 +158,27 @@ class JobClockOptionsFlowHandler(config_entries.OptionsFlow):
             CONF_MIN_STAY, self.config_entry.data.get(CONF_MIN_STAY, DEFAULT_MIN_STAY)
         )
 
+        current_zone = self.config_entry.options.get(
+             CONF_ZONE, self.config_entry.data.get(CONF_ZONE)
+        )
+        current_switch = self.config_entry.options.get(
+             CONF_OFFICE_SWITCH, self.config_entry.data.get(CONF_OFFICE_SWITCH)
+        )
+
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
                 {
+                    vol.Required(
+                        CONF_ZONE, default=current_zone
+                    ): EntitySelector(
+                        EntitySelectorConfig(domain="zone")
+                    ),
+                    vol.Required(
+                        CONF_OFFICE_SWITCH, default=current_switch
+                    ): EntitySelector(
+                        EntitySelectorConfig(domain=["input_boolean", "switch"])
+                    ),
                     vol.Required(
                         CONF_ENTRY_DELAY, default=current_entry_delay
                     ): NumberSelector(

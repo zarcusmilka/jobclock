@@ -47,5 +47,7 @@ class JobClockTimeSensor(SensorEntity):
     def extra_state_attributes(self):
         """Return the state attributes."""
         return {
-            "entry_id": self._entry.entry_id
+            "entry_id": self._entry.entry_id,
+            "switch_entity": self._instance.switch_entity,
+            "zone_entity": self._instance.zone_entity,
         }

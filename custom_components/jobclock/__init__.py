@@ -177,9 +177,9 @@ class JobClockInstance:
         # Determine config source (options override data)
         self.get_conf = lambda k, default: entry.options.get(k, entry.data.get(k, default))
         
-        self.person_entity = entry.data[CONF_PERSON]
-        self.zone_entity = entry.data[CONF_ZONE]
-        self.switch_entity = entry.data[CONF_OFFICE_SWITCH]
+        self.person_entity = self.get_conf(CONF_PERSON, None)
+        self.zone_entity = self.get_conf(CONF_ZONE, None)
+        self.switch_entity = self.get_conf(CONF_OFFICE_SWITCH, None)
         
         self.entry_delay = timedelta(minutes=self.get_conf(CONF_ENTRY_DELAY, DEFAULT_ENTRY_DELAY))
         self.exit_delay = timedelta(minutes=self.get_conf(CONF_EXIT_DELAY, DEFAULT_EXIT_DELAY))
@@ -194,7 +194,7 @@ class JobClockInstance:
         self.is_working = False
         self.session_start: datetime | None = None
         
-        # History: "YYYY-MM-DD": {"duration": seconds, "type": "work"|"sick"|"vacation"}
+        # History: "YYYY-MM-DD": {"duration": seconds, "type": "work"|"sick"|"vacation", "sessions": [...]}
         self.history = {} 
         self.last_update_date: str | None = None
 
@@ -258,13 +258,21 @@ class JobClockInstance:
         if data:
             self.history = data.get("history", {})
             
-            # Legacy migration (Version 1 had "date", "seconds_today")
+            # Migration
+            # v1: {"date": ..., "seconds_today": ...}
+            # v2: {"history": {"YYYY-MM-DD": {"duration": ..., "type": ...}}}
+            # v3: Added "sessions" key to history entries
+            for day in self.history.values():
+                if "sessions" not in day:
+                    day["sessions"] = []
+            
             if "history" not in data and "date" in data:
-                # Migrate single day
+                # Migrate v1 single day
                 d = data["date"]
                 self.history[d] = {
                     "duration": data.get("seconds_today", 0),
-                    "type": "work"
+                    "type": "work",
+                    "sessions": []
                 }
             
             self.last_update_date = dt_util.now().date().isoformat()
@@ -320,28 +328,24 @@ class JobClockInstance:
         current = start_date
         while current <= end_date:
             d_str = current.isoformat()
-            data = self.history.get(d_str, {"duration": 0, "type": "work"})
+            data = self.history.get(d_str, {"duration": 0, "type": "work", "sessions": []})
             
             # If "today", add live
             if current == dt_util.now().date() and self.is_working:
                 live_seconds = self.get_time_today_seconds() # includes stored + session
-                # We return the LIVE view
                 data = data.copy()
                 data["duration"] = live_seconds
+                # We don't append the "live" session to sessions list here, 
+                # frontend handles showing "currently active".
             
             # Calculate Delta
-            # Target?
             week_day_short = current.strftime("%a").lower()
             target = 0
             if data.get("type", "work") == "work":
                  if week_day_short in self.work_days:
-                     target = self.daily_target * 3600
+                      target = self.daily_target * 3600
             
-            # If vacation/sick, maybe target is 0 or assumed full?
-            # Usually Vacation = Target met.
             if data.get("type") in ["vacation", "sick"]:
-                # If configured to count as work?
-                # TimeGoat logic: Vacation counts as Target Hours.
                 if week_day_short in self.work_days:
                     data["duration"] = self.daily_target * 3600 # Auto-fill
                     target = self.daily_target * 3600
@@ -353,7 +357,8 @@ class JobClockInstance:
                 "duration": data["duration"],
                 "type": data.get("type", "work"),
                 "target": target,
-                "delta": delta
+                "delta": delta,
+                "sessions": data.get("sessions", [])
             })
             current += timedelta(days=1)
         return result
@@ -362,10 +367,12 @@ class JobClockInstance:
         """Update history manually."""
         d_str = date_obj.isoformat()
         if d_str not in self.history:
-            self.history[d_str] = {"duration": 0, "type": "work"}
+            self.history[d_str] = {"duration": 0, "type": "work", "sessions": []}
             
         if duration is not None:
             self.history[d_str]["duration"] = float(duration)
+            # If manual edit, we might want to clear sessions to avoid confusion
+            # but for now let's keep them as "audit log"
         if status_type is not None:
             self.history[d_str]["type"] = status_type
             
@@ -449,9 +456,19 @@ class JobClockInstance:
         duration = (end_time - self.session_start).total_seconds()
         
         if duration >= self.min_stay.total_seconds():
-            today_str = dt_util.now().date().isoformat()
+            today_str = self.session_start.date().isoformat()
             if today_str not in self.history:
-                self.history[today_str] = {"duration": 0, "type": "work"}
+                self.history[today_str] = {"duration": 0, "type": "work", "sessions": []}
+            
+            # Log session
+            session = {
+                "start": self.session_start.isoformat(),
+                "end": end_time.isoformat(),
+                "duration": duration
+            }
+            if "sessions" not in self.history[today_str]:
+                self.history[today_str]["sessions"] = []
+            self.history[today_str]["sessions"].append(session)
             
             self.history[today_str]["duration"] += duration
         

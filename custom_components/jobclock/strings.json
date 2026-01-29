@@ -33,6 +33,8 @@
                     "exit_delay": "Exit Delay (min)",
                     "min_stay_duration": "Min Stay Duration (min)",
                     "daily_target_hours": "Daily Target (hours)",
+                    "work_zone": "Work Zone",
+                    "home_office_switch": "Home Office Switch (Input Boolean)",
                     "work_days": "Work Days"
                 }
             }

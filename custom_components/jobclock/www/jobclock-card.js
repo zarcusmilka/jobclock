@@ -4,142 +4,213 @@ const html = LitElement.prototype.html;
 const css = LitElement.prototype.css;
 
 class JobClockCard extends LitElement {
-    static get properties() {
-        return {
-            hass: {},
-            config: {},
-            _data: { state: true },
-            _currentMonth: { state: true },
-            _loading: { state: true },
-            _editorOpen: { state: true },
-            _editDate: { state: true },
-            _editDuration: { state: true },
-            _editType: { state: true },
-        };
-    }
+  static get properties() {
+    return {
+      hass: {},
+      config: {},
+      _data: { state: true },
+      _currentMonth: { state: true },
+      _loading: { state: true },
+      _editorOpen: { state: true },
+      _editDate: { state: true },
+      _editDuration: { state: true },
+      _editType: { state: true },
+    };
+  }
 
-    constructor() {
-        super();
-        this._data = {};
-        this._currentMonth = new Date();
-        this._loading = false;
-        this._editorOpen = false;
-    }
+  constructor() {
+    super();
+    this._data = {};
+    this._currentMonth = new Date();
+    this._loading = false;
+    this._editorOpen = false;
+  }
 
-    setConfig(config) {
-        if (!config.entity) {
-            throw new Error("Please define a JobClock sensor entity");
+  setConfig(config) {
+    if (!config.entity) {
+      throw new Error("Please define a JobClock sensor entity");
+    }
+    this.config = config;
+  }
+
+  getCardSize() {
+    return 8;
+  }
+
+  updated(changedProps) {
+    if (changedProps.has("config")) {
+      // Reset if entity changed (multi-user fix)
+      this._entry_id = null;
+      this._data = {};
+      this.fetchData();
+    }
+    if (changedProps.has("hass") && this.config.entity) {
+      // Check if we need to load initial data
+      if (!this._entry_id) {
+        const stateObj = this.hass.states[this.config.entity];
+        if (stateObj && stateObj.attributes.entry_id) {
+          this._entry_id = stateObj.attributes.entry_id;
+          this.fetchData();
         }
-        this.config = config;
+      }
     }
+  }
 
-    getCardSize() {
-        return 8;
+  async fetchData() {
+    if (!this._entry_id) return;
+    this._loading = true;
+
+    const year = this._currentMonth.getFullYear();
+    const month = this._currentMonth.getMonth();
+
+    const startDate = new Date(year, month, 1, 12).toISOString().split('T')[0];
+    const endDate = new Date(year, month + 1, 0, 12).toISOString().split('T')[0]; // Last day of month
+
+    try {
+      const result = await this.hass.callWS({
+        type: "jobclock/get_data",
+        entry_id: this._entry_id,
+        start_date: startDate,
+        end_date: endDate
+      });
+
+      // Map list to object for easier lookup
+      const map = {};
+      result.forEach(d => map[d.date] = d);
+      this._data = map;
+    } catch (e) {
+      console.error("JobClock Error", e);
+    } finally {
+      this._loading = false;
     }
+  }
 
-    updated(changedProps) {
-        if (changedProps.has("hass") && this.config.entity) {
-            // Check if we need to load initial data
-            if (!this._entry_id) {
-                const stateObj = this.hass.states[this.config.entity];
-                if (stateObj && stateObj.attributes.entry_id) {
-                    this._entry_id = stateObj.attributes.entry_id;
-                    this.fetchData();
-                }
-            }
-        }
-    }
+  changeMonth(delta) {
+    const newDate = new Date(this._currentMonth);
+    newDate.setMonth(newDate.getMonth() + delta);
+    this._currentMonth = newDate;
+    this.fetchData();
+  }
 
-    async fetchData() {
-        if (!this._entry_id) return;
-        this._loading = true;
+  openEditor(dateStr, currentData) {
+    this._editDate = dateStr;
+    this._editDuration = currentData ? (currentData.duration / 3600).toFixed(2) : "0.00";
+    this._editType = currentData ? currentData.type : "work";
+    this._editorOpen = true;
+  }
 
-        const year = this._currentMonth.getFullYear();
-        const month = this._currentMonth.getMonth();
+  closeEditor() {
+    this._editorOpen = false;
+    this._editDate = null;
+  }
 
-        const startDate = new Date(year, month, 1, 12).toISOString().split('T')[0];
-        const endDate = new Date(year, month + 1, 0, 12).toISOString().split('T')[0]; // Last day of month
+  async saveEntry() {
+    if (!this._editDate || !this._entry_id) return;
 
-        try {
-            const result = await this.hass.callWS({
-                type: "jobclock/get_data",
-                entry_id: this._entry_id,
-                start_date: startDate,
-                end_date: endDate
-            });
+    const duration = parseFloat(this._editDuration) * 3600;
 
-            // Map list to object for easier lookup
-            const map = {};
-            result.forEach(d => map[d.date] = d);
-            this._data = map;
-        } catch (e) {
-            console.error("JobClock Error", e);
-        } finally {
-            this._loading = false;
-        }
-    }
+    await this.hass.callWS({
+      type: "jobclock/update_entry",
+      entry_id: this._entry_id,
+      date: this._editDate,
+      duration: duration,
+      status_type: this._editType
+    });
 
-    changeMonth(delta) {
-        const newDate = new Date(this._currentMonth);
-        newDate.setMonth(newDate.getMonth() + delta);
-        this._currentMonth = newDate;
-        this.fetchData();
-    }
+    this.closeEditor();
+    this.fetchData();
 
-    openEditor(dateStr, currentData) {
-        this._editDate = dateStr;
-        this._editDuration = currentData ? (currentData.duration / 3600).toFixed(2) : "0.00";
-        this._editType = currentData ? currentData.type : "work";
-        this._editorOpen = true;
-    }
+    // Also force entity update if today
+    // Not easily possible without trigger
+  }
 
-    closeEditor() {
-        this._editorOpen = false;
-        this._editDate = null;
-    }
+  exportToCSV() {
+    const rows = [["Date", "Duration (sec)", "Duration (hours)", "Type", "Start", "End"]];
 
-    async saveEntry() {
-        if (!this._editDate || !this._entry_id) return;
-
-        const duration = parseFloat(this._editDuration) * 3600;
-
-        await this.hass.callWS({
-            type: "jobclock/update_entry",
-            entry_id: this._entry_id,
-            date: this._editDate,
-            duration: duration,
-            status_type: this._editType
+    // Flatten data including sessions
+    const sortedDates = Object.keys(this._data).sort();
+    sortedDates.forEach(date => {
+      const day = this._data[date];
+      if (day.sessions && day.sessions.length > 0) {
+        day.sessions.forEach(s => {
+          rows.push([
+            date,
+            s.duration.toFixed(0),
+            (s.duration / 3600).toFixed(2),
+            day.type,
+            s.start,
+            s.end
+          ]);
         });
+      } else if (day.duration > 0) {
+        rows.push([
+          date,
+          day.duration.toFixed(0),
+          (day.duration / 3600).toFixed(2),
+          day.type,
+          "",
+          ""
+        ]);
+      }
+    });
 
-        this.closeEditor();
-        this.fetchData();
+    const csvContent = "data:text/csv;charset=utf-8,"
+      + rows.map(e => e.join(",")).join("\n");
 
-        // Also force entity update if today
-        // Not easily possible without trigger
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `jobclock_export_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  render() {
+    if (!this.hass || !this.config) {
+      return html`<ha-card>Configuration error</ha-card>`;
     }
 
-    render() {
-        if (!this.hass || !this.config) {
-            return html`<ha-card>Configuration error</ha-card>`;
-        }
+    // Header
+    const monthName = this._currentMonth.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
 
-        // Header
-        const monthName = this._currentMonth.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+    // Stats
+    let totalSeconds = 0;
+    let totalDelta = 0;
+    Object.values(this._data).forEach(d => {
+      totalSeconds += d.duration;
+      totalDelta += d.delta;
+    });
+    const totalHours = (totalSeconds / 3600).toFixed(1);
+    const deltaHours = (totalDelta / 3600);
+    const deltaStr = (deltaHours > 0 ? "+" : "") + deltaHours.toFixed(2) + " h";
+    const deltaClass = deltaHours >= 0 ? "delta-pos" : "delta-neg";
 
-        // Stats
-        let totalSeconds = 0;
-        let totalDelta = 0;
-        Object.values(this._data).forEach(d => {
-            totalSeconds += d.duration;
-            totalDelta += d.delta;
-        });
-        const totalHours = (totalSeconds / 3600).toFixed(1);
-        const deltaHours = (totalDelta / 3600);
-        const deltaStr = (deltaHours > 0 ? "+" : "") + deltaHours.toFixed(2) + " h";
-        const deltaClass = deltaHours >= 0 ? "delta-pos" : "delta-neg";
+    // State of Home Office Switch
+    const stateObj = this.hass.states[this.config.entity];
+    const switchEntity = stateObj?.attributes?.switch_entity;
+    const switchState = switchEntity ? this.hass.states[switchEntity] : null;
+    const isHO = switchState?.state === 'on';
 
-        return html`
+    return html`
       <ha-card>
+        <div class="card-title">
+            JobClock: ${stateObj?.attributes?.friendly_name || "Integration"}
+            ${switchEntity ? html`
+                <ha-icon-button 
+                    class="ho-toggle ${isHO ? 'ho-on' : ''}" 
+                    icon="mdi:home-clock"
+                    @click=${() => this.hass.callService("homeassistant", "toggle", { entity_id: switchEntity })}
+                    title="Home Office Ein/Aus"
+                ></ha-icon-button>
+            ` : ""}
+            <ha-icon-button 
+                icon="mdi:export" 
+                @click=${() => this.exportToCSV()}
+                title="Export (CSV)"
+            ></ha-icon-button>
+        </div>
+
         <div class="header">
             <ha-icon-button icon="mdi:chevron-left" @click=${() => this.changeMonth(-1)}></ha-icon-button>
             <div class="month-title">
@@ -159,66 +230,69 @@ class JobClockCard extends LitElement {
         ${this._editorOpen ? this.renderEditor() : ""}
       </ha-card>
     `;
+  }
+
+  renderCalendarDays() {
+    const year = this._currentMonth.getFullYear();
+    const month = this._currentMonth.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+
+    // Shift so Mon=0, Sun=6
+    let startDay = firstDay.getDay() - 1;
+    if (startDay < 0) startDay = 6;
+
+    const days = [];
+
+    // Empty cells
+    for (let i = 0; i < startDay; i++) {
+      days.push(html`<div class="day empty"></div>`);
     }
 
-    renderCalendarDays() {
-        const year = this._currentMonth.getFullYear();
-        const month = this._currentMonth.getMonth();
-        const firstDay = new Date(year, month, 1);
-        const lastDay = new Date(year, month + 1, 0);
+    // Days
+    for (let d = 1; d <= lastDay.getDate(); d++) {
+      const dateStr = new Date(year, month, d, 12).toISOString().split('T')[0];
+      const dayData = this._data[dateStr];
+      const isToday = dateStr === new Date().toISOString().split('T')[0];
 
-        // Shift so Mon=0, Sun=6
-        let startDay = firstDay.getDay() - 1;
-        if (startDay < 0) startDay = 6;
+      let content = html`<span>${d}</span>`;
+      let classes = "day" + (isToday ? " today" : "");
 
-        const days = [];
+      if (dayData) {
+        const h = (dayData.duration / 3600).toFixed(1);
+        const deltaH = (dayData.delta / 3600);
+        const deltaBadge = deltaH !== 0 ? ((deltaH > 0 ? "+" : "") + deltaH.toFixed(1)) : null;
+        const badgeClass = deltaH >= 0 ? "badge-pos" : "badge-neg";
+        const isVacation = dayData.type === 'vacation';
+        const isSick = dayData.type === 'sick';
 
-        // Empty cells
-        for (let i = 0; i < startDay; i++) {
-            days.push(html`<div class="day empty"></div>`);
-        }
+        if (isVacation) classes += " vacation";
+        if (isSick) classes += " sick";
+        if (dayData.duration > 0 && !isVacation && !isSick) classes += " work";
 
-        // Days
-        for (let d = 1; d <= lastDay.getDate(); d++) {
-            const dateStr = new Date(year, month, d, 12).toISOString().split('T')[0];
-            const dayData = this._data[dateStr];
-            const isToday = dateStr === new Date().toISOString().split('T')[0];
-
-            let content = html`<span>${d}</span>`;
-            let classes = "day" + (isToday ? " today" : "");
-
-            if (dayData) {
-                const h = (dayData.duration / 3600).toFixed(1);
-                const deltaH = (dayData.delta / 3600);
-                const deltaBadge = deltaH !== 0 ? ((deltaH > 0 ? "+" : "") + deltaH.toFixed(1)) : null;
-                const badgeClass = deltaH >= 0 ? "badge-pos" : "badge-neg";
-                const isVacation = dayData.type === 'vacation';
-                const isSick = dayData.type === 'sick';
-
-                if (isVacation) classes += " vacation";
-                if (isSick) classes += " sick";
-                if (dayData.duration > 0 && !isVacation && !isSick) classes += " work";
-
-                content = html`
+        content = html`
                 <span class="day-num">${d}</span>
                 ${isVacation ? html`<ha-icon icon="mdi:beach" class="icon"></ha-icon>` :
-                        isSick ? html`<ha-icon icon="mdi:medical-bag" class="icon"></ha-icon>` :
-                            html`<div class="hours">${h}h</div>`}
+            isSick ? html`<ha-icon icon="mdi:medical-bag" class="icon"></ha-icon>` :
+              html`<div class="hours">${h}h</div>`}
                 
                 ${(!isVacation && !isSick && deltaBadge) ? html`<div class="badge ${badgeClass}">${deltaBadge}</div>` : ""}
             `;
-            } else {
-                content = html`<span class="day-num">${d}</span>`;
-            }
+      } else {
+        content = html`<span class="day-num">${d}</span>`;
+      }
 
-            days.push(html`<div class="${classes}" @click=${() => this.openEditor(dateStr, dayData)}>${content}</div>`);
-        }
-
-        return days;
+      days.push(html`<div class="${classes}" @click=${() => this.openEditor(dateStr, dayData)}>${content}</div>`);
     }
 
-    renderEditor() {
-        return html`
+    return days;
+  }
+
+  renderEditor() {
+    const dayData = this._data[this._editDate];
+    const sessions = dayData?.sessions || [];
+
+    return html`
         <div class="editor-overlay">
             <div class="editor-dialog">
                 <h3>Edit ${this._editDate}</h3>
@@ -237,6 +311,22 @@ class JobClockCard extends LitElement {
                         <option value="sick">Krank</option>
                     </select>
                 </div>
+
+                ${sessions.length > 0 ? html`
+                    <div class="sessions-list">
+                        <label>Erfasste Sessions</label>
+                        ${sessions.map(s => {
+      const start = new Date(s.start).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+      const end = new Date(s.end).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+      return html`
+                                <div class="session-item">
+                                    <span>${start} - ${end}</span>
+                                    <span>${(s.duration / 3600).toFixed(2)}h</span>
+                                </div>
+                            `;
+    })}
+                    </div>
+                ` : ""}
                 
                 <div class="actions">
                     <button class="cancel" @click=${() => this.closeEditor()}>Cancel</button>
@@ -245,10 +335,10 @@ class JobClockCard extends LitElement {
             </div>
         </div>
       `;
-    }
+  }
 
-    static get styles() {
-        return css`
+  static get styles() {
+    return css`
       :host {
         --jc-bg: #1c1c1e;
         --jc-card: #2c2c2e;
@@ -269,6 +359,26 @@ class JobClockCard extends LitElement {
         justify-content: space-between;
         align-items: center;
         margin-bottom: 20px;
+        background: var(--jc-card);
+        padding: 8px;
+        border-radius: 8px;
+      }
+      .card-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-bottom: 12px;
+        font-weight: bold;
+        color: var(--jc-blue);
+        border-bottom: 1px solid var(--jc-card);
+        margin-bottom: 12px;
+      }
+      .ho-toggle {
+        --mdc-icon-size: 24px;
+        color: var(--jc-gray);
+      }
+      .ho-toggle.ho-on {
+        color: var(--jc-green);
       }
       .month-title {
         text-align: center;
@@ -398,14 +508,35 @@ class JobClockCard extends LitElement {
       }
       .save { background: var(--jc-green); color: white; }
       .cancel { background: transparent; color: var(--jc-gray); }
+
+      .sessions-list {
+        margin: 16px 0;
+        border-top: 1px solid var(--jc-bg);
+        padding-top: 8px;
+        max-height: 150px;
+        overflow-y: auto;
+      }
+      .sessions-list label {
+        display: block;
+        font-size: 0.8rem;
+        color: var(--jc-gray);
+        margin-bottom: 8px;
+      }
+      .session-item {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.8rem;
+        padding: 4px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+      }
     `;
-    }
+  }
 }
 
 customElements.define("jobclock-card", JobClockCard);
 window.customCards = window.customCards || [];
 window.customCards.push({
-    type: "jobclock-card",
-    name: "JobClock Dashboard",
-    description: "Time, Stats, and History for JobClock"
+  type: "jobclock-card",
+  name: "JobClock Dashboard",
+  description: "Time, Stats, and History for JobClock"
 });

@@ -33,6 +33,8 @@
                     "exit_delay": "Abgangs-Verzögerung (Min)",
                     "min_stay_duration": "Mindest-Anwesenheit (Min)",
                     "daily_target_hours": "Tagesziel (Stunden)",
+                    "work_zone": "Arbeits-Zone",
+                    "home_office_switch": "Home-Office Schalter (Input Boolean)",
                     "work_days": "Arbeitstage"
                 }
             }
