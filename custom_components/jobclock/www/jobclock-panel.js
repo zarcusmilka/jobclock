@@ -1,9 +1,7 @@
 
-import {
-    LitElement,
-    html,
-    css,
-} from "https://unpkg.com/lit-element@2.4.0/lit-element.js?module";
+const LitElement = Object.getPrototypeOf(customElements.get("ha-panel-lovelace") || customElements.get("hc-main"));
+const html = LitElement.prototype.html;
+const css = LitElement.prototype.css;
 
 // Import the card logic/styles if possible, or simpler: 
 // Since we used customElements.define in jobclock-card.js, we assume it's loaded.
@@ -13,68 +11,68 @@ import {
 import "/jobclock_static/jobclock-card.js";
 
 class JobClockPanel extends LitElement {
-    static get properties() {
-        return {
-            hass: { type: Object },
-            narrow: { type: Boolean },
-            route: { type: Object },
-            panel: { type: Object },
-            _instances: { type: Array },
-            _selectedInstance: { type: String }
-        };
+  static get properties() {
+    return {
+      hass: { type: Object },
+      narrow: { type: Boolean },
+      route: { type: Object },
+      panel: { type: Object },
+      _instances: { type: Array },
+      _selectedInstance: { type: String }
+    };
+  }
+
+  constructor() {
+    super();
+    this._instances = [];
+    this._selectedInstance = null;
+  }
+
+  updated(changedProps) {
+    if (changedProps.has("hass")) {
+      this._findInstances();
     }
+  }
 
-    constructor() {
-        super();
-        this._instances = [];
-        this._selectedInstance = null;
-    }
+  _findInstances() {
+    // Find all sensors that are JobClock sensors
+    // We look for entities with integration 'jobclock' 
+    // OR we look for the unique_id structure?
+    // Best: look for attributes.entry_id + domain sensor + starting with jobclock?
 
-    updated(changedProps) {
-        if (changedProps.has("hass")) {
-            this._findInstances();
-        }
-    }
+    const instances = [];
+    Object.values(this.hass.states).forEach(stateObj => {
+      if (stateObj.entity_id.startsWith("sensor.jobclock_") &&
+        stateObj.entity_id.endsWith("_today") &&
+        stateObj.attributes.entry_id) {
 
-    _findInstances() {
-        // Find all sensors that are JobClock sensors
-        // We look for entities with integration 'jobclock' 
-        // OR we look for the unique_id structure?
-        // Best: look for attributes.entry_id + domain sensor + starting with jobclock?
+        // Nice Name: "JobClock X Today" -> "X"
+        const name = stateObj.attributes.friendly_name.replace("JobClock ", "").replace(" Today", "");
 
-        const instances = [];
-        Object.values(this.hass.states).forEach(stateObj => {
-            if (stateObj.entity_id.startsWith("sensor.jobclock_") &&
-                stateObj.entity_id.endsWith("_today") &&
-                stateObj.attributes.entry_id) {
-
-                // Nice Name: "JobClock X Today" -> "X"
-                const name = stateObj.attributes.friendly_name.replace("JobClock ", "").replace(" Today", "");
-
-                instances.push({
-                    id: stateObj.attributes.entry_id,
-                    name: name,
-                    entity_id: stateObj.entity_id
-                });
-            }
+        instances.push({
+          id: stateObj.attributes.entry_id,
+          name: name,
+          entity_id: stateObj.entity_id
         });
+      }
+    });
 
-        // Sort
-        instances.sort((a, b) => a.name.localeCompare(b.name));
+    // Sort
+    instances.sort((a, b) => a.name.localeCompare(b.name));
 
-        // Check if diff (simple check)
-        if (JSON.stringify(instances) !== JSON.stringify(this._instances)) {
-            this._instances = instances;
-            if (!this._selectedInstance && instances.length > 0) {
-                this._selectedInstance = instances[0].id;
-            }
-        }
+    // Check if diff (simple check)
+    if (JSON.stringify(instances) !== JSON.stringify(this._instances)) {
+      this._instances = instances;
+      if (!this._selectedInstance && instances.length > 0) {
+        this._selectedInstance = instances[0].id;
+      }
     }
+  }
 
-    render() {
-        if (!this.hass) return html`Loading...`;
+  render() {
+    if (!this.hass) return html`Loading...`;
 
-        return html`
+    return html`
       <div class="panel">
         <div class="toolbar">
             <ha-menu-button .hass=${this.hass} .narrow=${this.narrow}></ha-menu-button>
@@ -97,26 +95,26 @@ class JobClockPanel extends LitElement {
         </div>
       </div>
     `;
+  }
+
+  _renderContent() {
+    if (this._instances.length === 0) {
+      return html`<div class="empty">No JobClock instances found. Please add one in Integrations.</div>`;
     }
 
-    _renderContent() {
-        if (this._instances.length === 0) {
-            return html`<div class="empty">No JobClock instances found. Please add one in Integrations.</div>`;
-        }
+    const current = this._instances.find(i => i.id === this._selectedInstance);
+    if (!current) return html`Select an instance`;
 
-        const current = this._instances.find(i => i.id === this._selectedInstance);
-        if (!current) return html`Select an instance`;
+    // Pass a fake config object to satisfy the card's expectation
+    const cardConfig = { entity: current.entity_id };
 
-        // Pass a fake config object to satisfy the card's expectation
-        const cardConfig = { entity: current.entity_id };
-
-        return html`
+    return html`
         <jobclock-card .hass=${this.hass} .config=${cardConfig}></jobclock-card>
       `;
-    }
+  }
 
-    static get styles() {
-        return css`
+  static get styles() {
+    return css`
       :host {
         background-color: var(--primary-background-color);
         display: block;
@@ -191,7 +189,7 @@ class JobClockPanel extends LitElement {
         font-size: 1.2rem;
       }
     `;
-    }
+  }
 }
 
 customElements.define("jobclock-panel", JobClockPanel);
