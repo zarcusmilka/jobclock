@@ -129,7 +129,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     return unload_ok
 
-@websocket_api.websocket_command(WS_GET_DATA_SCHEMA)
+
 @websocket_api.async_response
 async def ws_get_data(hass, connection, msg):
     """Handle get data command."""
@@ -149,7 +149,10 @@ async def ws_get_data(hass, connection, msg):
     data = await instance.get_history_range(start_date, end_date)
     connection.send_result(msg["id"], data)
 
-@websocket_api.websocket_command(WS_UPDATE_ENTRY_SCHEMA)
+ws_get_data._ws_schema = WS_GET_DATA_SCHEMA
+ws_get_data._ws_command = "jobclock/get_data"
+
+
 @websocket_api.async_response
 async def ws_update_entry(hass, connection, msg):
     """Handle update entry command."""
@@ -169,6 +172,9 @@ async def ws_update_entry(hass, connection, msg):
     
     await instance.update_history_day(date_obj, duration=duration, status_type=status_type)
     connection.send_result(msg["id"], {"status": "ok"})
+
+ws_update_entry._ws_schema = WS_UPDATE_ENTRY_SCHEMA
+ws_update_entry._ws_command = "jobclock/update_entry"
 
 
 class JobClockInstance:
