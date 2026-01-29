@@ -119,7 +119,18 @@ class JobClockOptionsFlowHandler(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
-        self.config_entry = config_entry
+        # Fix for HA 2024.12+: config_entry is a read-only property on the parent
+        # We must initialize the parent with it.
+        super().__init__()
+        # We don't set self.config_entry manually if the parent handles it or if it's read-only.
+        # However, looking at recent HA source, standard is simply:
+        # super().__init__() and accessing self.config_entry (which is set by the handler system?)
+        # Wait, the error was "property 'config_entry' ... has no setter".
+        # This means we CANNOT do `self.config_entry = config_entry`.
+        # The flow manager sets it. We just need to store it if we need it, but usually we don't need to write to it.
+        # But wait, `async_step_init` uses it? No because we removed usage.
+        # Let's just remove the assignment.
+        pass
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None

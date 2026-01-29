@@ -76,28 +76,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         ])
         
         # Register the panel
-        # Note: We point to the JS file. The frontend will load it.
-        # The web component name MUST be "jobclock-panel" (defined in JS).
-        hass.components.frontend.async_register_panel(
-            hass,
-            "jobclock",
-            "jobclock-panel", # This is the webcomponent tag name
-            sidebar_title="JobClock",
-            sidebar_icon="mdi:briefcase-clock",
-            frontend_url_path="jobclock",
-            config=None,
-            require_admin=False,
-            # The 'url_path' or 'url' argument tells HA where to load the JS from.
-            # Only for built-in panels? 
-            # For custom panels we use 'webcomponent_name' usually if registered via configuration.yaml.
-            # Programmatically: 'js_url' might be needed or 'module_url'.
-            # Let's check signature. 
-            # In recent HA: async_register_panel(hass, component_name, frontend_url_path, ...)
-            # Actually simplest is:
-        )
-        # Re-reading HA dev docs for programmatic custom panel:
-        # It's safest to rely on 'frontend.async_register_panel' with 'config' dict pointing to module_url.
-        hass.components.frontend.async_register_panel(
+        from homeassistant.components.frontend import async_register_panel
+        
+        async_register_panel(
              hass,
              "jobclock",
              "jobclock-panel",
