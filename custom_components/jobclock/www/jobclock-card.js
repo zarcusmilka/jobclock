@@ -171,128 +171,229 @@ class JobClockCard extends LitElement {
   }
 
   render() {
-    if (!this.hass || !this.config) {
-      return html`<ha-card>Configuration error</ha-card>`;
-    }
+    if (!this._data || !this.config) return html``;
 
-    // Header
-    const monthName = this._currentMonth.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
-
-    // Stats
-    let totalSeconds = 0;
-    let totalDelta = 0;
-    Object.values(this._data).forEach(d => {
-      totalSeconds += d.duration;
-      totalDelta += d.delta;
-    });
-    const totalHours = (totalSeconds / 3600).toFixed(1);
-    const deltaHours = (totalDelta / 3600);
-    const deltaStr = (deltaHours > 0 ? "+" : "") + deltaHours.toFixed(2) + " h";
-    const deltaClass = deltaHours >= 0 ? "delta-pos" : "delta-neg";
-
-    // State of Home Office Switch
+    const { _currentMonth: currentMonth, entity } = this;
+    const today = new Date();
     const stateObj = this.hass.states[this.config.entity];
+    const friendlyName = stateObj?.attributes?.friendly_name || "JobClock";
+
+    // Configured Switch for HO
     const switchEntity = stateObj?.attributes?.switch_entity;
-    const switchState = switchEntity ? this.hass.states[switchEntity] : null;
-    const isHO = switchState?.state === 'on';
+    const switchStateObj = switchEntity ? this.hass.states[switchEntity] : null;
+    const isHO = switchStateObj?.state === 'on';
+
+    const monthStr = currentMonth.toISOString().slice(0, 7);
+    const monthName = currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+    // Calculate Monthly Stats
+    let totalSeconds = 0;
+    let totalTarget = 0;
+
+    Object.keys(this._data).forEach(k => {
+      if (k.startsWith(monthStr)) {
+        totalSeconds += this._data[k].duration;
+        totalTarget += this._data[k].target;
+      }
+    });
+
+    const deltaSeconds = totalSeconds - totalTarget;
+    const displayHours = (totalSeconds / 3600).toFixed(1);
+    const displayDelta = (deltaSeconds / 3600).toFixed(1);
+    const deltaClass = deltaSeconds >= 0 ? "val-pos" : "val-neg";
+    const deltaSign = deltaSeconds >= 0 ? "+" : "";
+
+    // Timer / Active State
+    const isWorking = stateObj?.state === "working";
+    const sessionStart = stateObj?.attributes?.session_start;
+
+    let timerDisplay = "00:00";
+    let subText = "Geplant: 8h";
+
+    if (isWorking && sessionStart) {
+      // Calculate dynamic time
+      const start = new Date(sessionStart).getTime();
+      const now = new Date().getTime(); // Needs periodic refresh
+      const diff = Math.floor((now - start) / 1000);
+      const h = Math.floor(diff / 3600);
+      const m = Math.floor((diff % 3600) / 60);
+      timerDisplay = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+
+      // Add previously stored duration for today to show TOTAL worked today?
+      // Ideally we show session time in ring, and total today below.
+      // For simplicity, let's show SESSION time in big letters.
+      subText = "Aktive Sitzung";
+    } else {
+      // Show today's total if not working?
+      const todayStr = today.toISOString().slice(0, 10);
+      const todayData = this._data[todayStr];
+      if (todayData) {
+        const h = Math.floor(todayData.duration / 3600);
+        const m = Math.floor((todayData.duration % 3600) / 60);
+        timerDisplay = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+        subText = "Heute gearbeitet";
+      } else {
+        timerDisplay = "Start";
+        subText = "Bereit zur Arbeit";
+      }
+    }
 
     return html`
       <ha-card>
-        <div class="card-title">
-            JobClock: ${stateObj?.attributes?.friendly_name || "Integration"}
-            ${switchEntity ? html`
-                <ha-icon-button 
-                    class="ho-toggle ${isHO ? 'ho-on' : ''}" 
-                    icon="mdi:home-clock"
-                    @click=${() => this.hass.callService("homeassistant", "toggle", { entity_id: switchEntity })}
-                    title="Home Office Ein/Aus"
-                ></ha-icon-button>
-            ` : ""}
-            <ha-icon-button 
-                icon="mdi:export" 
-                @click=${() => this.exportToCSV()}
-                title="Export (CSV)"
-            ></ha-icon-button>
-        </div>
-
-        <div class="header">
-            <ha-icon-button icon="mdi:chevron-left" @click=${() => this.changeMonth(-1)}></ha-icon-button>
-            <div class="month-title">
-                ${monthName}
-                <div class="stats">
-                    ${totalHours} h <span class="${deltaClass}">(${deltaStr})</span>
-                </div>
+        <!-- HEADER -->
+        <div class="header-row">
+            <div class="app-title">
+                <ha-icon icon="mdi:briefcase-clock-outline"></ha-icon>
+                ${friendlyName.replace("JobClock ", "")}
             </div>
-            <ha-icon-button icon="mdi:chevron-right" @click=${() => this.changeMonth(1)}></ha-icon-button>
+            <div style="display:flex; gap: 8px;">
+                 <ha-icon-button class="icon-btn" icon="mdi:export-variant" @click=${() => this.exportToCSV()} title="Export"></ha-icon-button>
+                 <ha-icon-button class="icon-btn" icon="mdi:dots-vertical" @click=${() => this._showSettings()}></ha-icon-button>
+            </div>
         </div>
 
-        <div class="calendar-grid">
-            ${["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].map(d => html`<div class="day-name">${d}</div>`)}
-            ${this.renderCalendarDays()}
+        <!-- HERO SECTION -->
+        <div class="hero-section">
+            <div class="timer-ring ${isWorking ? 'pulse' : ''}" @click=${this._toggleWork}>
+                <div class="timer-time">${timerDisplay}</div>
+                <div class="timer-status">${isWorking ? "Im Dienst" : "Abwesend"}</div>
+                <div class="time-sub">${subText}</div>
+            </div>
+            
+            <div class="actions-container">
+                <button class="btn-pill ${isWorking ? 'btn-danger' : 'btn-success'}" @click=${this._toggleWork}>
+                    <ha-icon icon="${isWorking ? 'mdi:stop-circle-outline' : 'mdi:play-circle-outline'}"></ha-icon>
+                    ${isWorking ? "Stop" : "Start"}
+                </button>
+                
+                ${switchEntity ? html`
+                <button class="btn-pill" style="background: var(--jc-glass); border-color: ${isHO ? 'var(--jc-primary)' : 'var(--jc-glass-border)'}" 
+                        @click=${() => this.hass.callService("homeassistant", "toggle", { entity_id: switchEntity })}>
+                    <ha-icon icon="mdi:home-city-outline" style="color: ${isHO ? 'var(--jc-primary)' : 'inherit'}"></ha-icon>
+                    ${isHO ? "Home" : "Office"}
+                </button>
+                ` : ''}
+            </div>
+        </div>
+        
+        <!-- STATS STRIP -->
+         <div class="stats-strip">
+            <div class="stat-card">
+                <div class="stat-val">${totalTarget ? (totalTarget / 3600).toFixed(1) + 'h' : '-'}</div>
+                <div class="stat-label">Soll</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-val">${displayHours}h</div>
+                <div class="stat-label">Ist</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-val ${deltaClass}">${deltaSign}${displayDelta}h</div>
+                <div class="stat-label">Saldo</div>
+            </div>
+         </div>
+
+        <!-- CALENDAR -->
+        <div class="calendar-container">
+            <div class="cal-nav">
+                <ha-icon-button class="icon-btn" icon="mdi:chevron-left" @click=${() => this.changeMonth(-1)}></ha-icon-button>
+                <div class="cal-title">${monthName}</div>
+                <ha-icon-button class="icon-btn" icon="mdi:chevron-right" @click=${() => this.changeMonth(1)}></ha-icon-button>
+            </div>
+            
+            <div class="cal-grid">
+                ${["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].map(d => html`<div class="cal-day-header">${d}</div>`)}
+                ${this.renderCalendarDays(currentMonth)}
+            </div>
         </div>
 
-        ${this._editorOpen ? this.renderEditor() : ""}
+        ${this._editorOpen ? this._renderEditor() : ""}
       </ha-card>
     `;
   }
 
-  renderCalendarDays() {
-    const year = this._currentMonth.getFullYear();
-    const month = this._currentMonth.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
+  _toggleWork() {
+    // We can't directly toggle "work" because it's state based on zone/switch.
+    // BUT user asked for "Clock In" button.
+    // If we have a switch entity configured as "Office Switch", we should toggle that?
+    // OR if we are using Zone presence, we can't toggle that easily.
+    // Let's assume the "Switch" is the master control if present.
+    const stateObj = this.hass.states[this.config.entity];
+    const switchEntity = stateObj?.attributes?.switch_entity;
 
-    // Shift so Mon=0, Sun=6
-    let startDay = firstDay.getDay() - 1;
-    if (startDay < 0) startDay = 6;
+    if (switchEntity) {
+      this.hass.callService("homeassistant", "toggle", { entity_id: switchEntity });
+    } else {
+      // Fallback or show toast
+      alert("Bitte konfiguriere einen 'Schalter' in den Integrationseinstellungen, um manuelles Stempeln zu ermöglichen.");
+    }
+  }
 
+  // Helper for calendar rendering (Refactored for new classes)
+  renderCalendarDays(date) {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    // Monday = 1, Sunday = 0. We want Monday first.
+    // 0(Sun) -> 6, 1(Mon) -> 0
+    const startOffset = firstDay === 0 ? 6 : firstDay - 1;
+
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
     const days = [];
 
     // Empty cells
-    for (let i = 0; i < startDay; i++) {
-      days.push(html`<div class="day empty"></div>`);
+    for (let i = 0; i < startOffset; i++) {
+      days.push(html`<div class="cal-day empty"></div>`);
     }
 
-    // Days
-    for (let d = 1; d <= lastDay.getDate(); d++) {
-      const dateStr = new Date(year, month, d, 12).toISOString().split('T')[0];
-      const dayData = this._data[dateStr];
-      const isToday = dateStr === new Date().toISOString().split('T')[0];
+    const todayStr = new Date().toISOString().slice(0, 10);
 
-      let content = html`<span>${d}</span>`;
-      let classes = "day" + (isToday ? " today" : "");
+    for (let i = 1; i <= daysInMonth; i++) {
+      const d = new Date(year, month, i);
+      const dStr = d.toISOString().slice(0, 10);
+      const dayData = this._data[dStr];
+
+      let durStr = "-";
+      let deltaHtml = html``;
+      let classes = "cal-day";
+
+      if (dStr === todayStr) classes += " today";
 
       if (dayData) {
         const h = (dayData.duration / 3600).toFixed(1);
-        const deltaH = (dayData.delta / 3600);
-        const deltaBadge = deltaH !== 0 ? ((deltaH > 0 ? "+" : "") + deltaH.toFixed(1)) : null;
-        const badgeClass = deltaH >= 0 ? "badge-pos" : "badge-neg";
-        const isVacation = dayData.type === 'vacation';
-        const isSick = dayData.type === 'sick';
+        durStr = `${h}h`;
 
-        if (isVacation) classes += " vacation";
-        if (isSick) classes += " sick";
-        if (dayData.duration > 0 && !isVacation && !isSick) classes += " work";
+        if (dayData.type === 'vacation') classes += " type-vacation";
+        if (dayData.type === 'sick') classes += " type-sick";
 
-        content = html`
-                <span class="day-num">${d}</span>
-                ${isVacation ? html`<ha-icon icon="mdi:beach" class="icon"></ha-icon>` :
-            isSick ? html`<ha-icon icon="mdi:medical-bag" class="icon"></ha-icon>` :
-              html`<div class="hours">${h}h</div>`}
-                
-                ${(!isVacation && !isSick && deltaBadge) ? html`<div class="badge ${badgeClass}">${deltaBadge}</div>` : ""}
-            `;
-      } else {
-        content = html`<span class="day-num">${d}</span>`;
+        const delta = dayData.delta / 3600;
+        if (delta !== 0) {
+          const dClass = delta > 0 ? "stat-delta-pos" : "stat-delta-neg";
+          const dSign = delta > 0 ? "+" : "";
+          deltaHtml = html`<div class="day-delta ${dClass}">${dSign}${delta.toFixed(1)}</div>`;
+        }
       }
 
-      days.push(html`<div class="${classes}" @click=${() => this.openEditor(dateStr, dayData)}>${content}</div>`);
+      days.push(html`
+            <div class="${classes}" @click=${() => this.openEditor(dStr, dayData)}>
+                <div class="day-num">${i}</div>
+                <div class="day-dur">${dayData?.type === 'vacation' ? html`<ha-icon icon="mdi:beach" style="--mdc-icon-size: 16px"></ha-icon>` : durStr}</div>
+                ${deltaHtml}
+            </div>
+        `);
     }
-
     return days;
   }
 
-  renderEditor() {
+  _showSettings() {
+    const event = new Event("hass-more-info", {
+      bubbles: true,
+      composed: true,
+    });
+    event.detail = { entityId: this.config.entity };
+    this.dispatchEvent(event);
+  }
+
+  _renderEditor() {
     const dayData = this._data[this._editDate];
     const sessions = dayData?.sessions || [];
 
