@@ -40,10 +40,13 @@ class JobClockCard extends LitElement {
 
   updated(changedProps) {
     if (changedProps.has("config")) {
-      // Reset if entity changed (multi-user fix)
-      this._entry_id = null;
-      this._data = {};
-      this.fetchData();
+      // Reset ONLY if entity changed (Fix infinite loop/flickering)
+      const oldConfig = changedProps.get("config");
+      if (oldConfig?.entity !== this.config?.entity) {
+        this._entry_id = null;
+        this._data = {};
+        this.fetchData();
+      }
     }
     if (changedProps.has("hass") && this.config.entity) {
       // Check if we need to load initial data
