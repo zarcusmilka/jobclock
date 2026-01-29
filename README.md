@@ -1,5 +1,11 @@
 # JobClock for Home Assistant
 
+[![GitHub Release](https://img.shields.io/github/v/release/zarcusmilka/jobclock.svg)](https://github.com/zarcusmilka/jobclock/releases)
+[![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
+[![Maintainer](https://img.shields.io/badge/maintainer-ZarcusM-blue.svg)](https://github.com/zarcusmilka)
+
+A smart work-time tracking integration for Home Assistant.
+
 A smart work-time tracking integration for Home Assistant.
 
 
