@@ -14,6 +14,7 @@ from homeassistant.helpers.event import async_track_state_change_event, async_tr
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 from homeassistant.components import websocket_api
+from homeassistant.components.http import StaticPathConfig
 
 from .const import (
     DOMAIN,
@@ -69,7 +70,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # Serve the 'www' directory
         path = hass.config.path("custom_components", "jobclock", "www")
         await hass.http.async_register_static_paths([
-            websocket_api.StaticPathConfig(
+            StaticPathConfig(
                 "/jobclock_static", path, cache_headers=True
             )
         ])
