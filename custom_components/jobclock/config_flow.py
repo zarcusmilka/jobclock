@@ -13,10 +13,8 @@ from homeassistant.helpers.selector import (
     EntitySelectorConfig,
     NumberSelector,
     NumberSelectorConfig,
-    NumberSelectorMode,
     SelectSelector,
     SelectSelectorConfig,
-    SelectSelectorMode,
 )
 
 from .const import (
@@ -78,28 +76,28 @@ class JobClockConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_ENTRY_DELAY, default=DEFAULT_ENTRY_DELAY
                     ): NumberSelector(
                         NumberSelectorConfig(
-                            min=0, max=60, mode=NumberSelectorMode.BOX, unit_of_measurement="min"
+                            min=0, max=60, mode="box", unit_of_measurement="min"
                         )
                     ),
                     vol.Required(
                         CONF_EXIT_DELAY, default=DEFAULT_EXIT_DELAY
                     ): NumberSelector(
                         NumberSelectorConfig(
-                            min=0, max=60, mode=NumberSelectorMode.BOX, unit_of_measurement="min"
+                            min=0, max=60, mode="box", unit_of_measurement="min"
                         )
                     ),
                     vol.Required(
                         CONF_MIN_STAY, default=DEFAULT_MIN_STAY
                     ): NumberSelector(
                         NumberSelectorConfig(
-                            min=0, max=120, mode=NumberSelectorMode.BOX, unit_of_measurement="min"
+                            min=0, max=120, mode="box", unit_of_measurement="min"
                         )
                     ),
                     vol.Required(
                         CONF_DAILY_TARGET, default=DEFAULT_DAILY_TARGET
                     ): NumberSelector(
                         NumberSelectorConfig(
-                            min=0, max=24, step=0.5, mode=NumberSelectorMode.BOX, unit_of_measurement="h"
+                            min=0, max=24, step=0.5, mode="box", unit_of_measurement="h"
                         )
                     ),
                     vol.Required(
@@ -108,7 +106,7 @@ class JobClockConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         SelectSelectorConfig(
                             options=[{"label": v, "value": k} for k, v in WORK_DAYS_OPTIONS.items()],
                             multiple=True,
-                            mode=SelectSelectorMode.DROPDOWN,
+                            mode="dropdown",
                         )
                     ),
                 }
@@ -157,28 +155,28 @@ class JobClockOptionsFlowHandler(config_entries.OptionsFlow):
                         CONF_ENTRY_DELAY, default=current_entry_delay
                     ): NumberSelector(
                         NumberSelectorConfig(
-                            min=0, max=60, mode=NumberSelectorMode.BOX, unit_of_measurement="min"
+                            min=0, max=60, mode="box", unit_of_measurement="min"
                         )
                     ),
                     vol.Required(
                         CONF_EXIT_DELAY, default=current_exit_delay
                     ): NumberSelector(
                         NumberSelectorConfig(
-                            min=0, max=60, mode=NumberSelectorMode.BOX, unit_of_measurement="min"
+                            min=0, max=60, mode="box", unit_of_measurement="min"
                         )
                     ),
                     vol.Required(
                         CONF_MIN_STAY, default=current_min_stay
                     ): NumberSelector(
                         NumberSelectorConfig(
-                            min=0, max=120, mode=NumberSelectorMode.BOX, unit_of_measurement="min"
+                            min=0, max=120, mode="box", unit_of_measurement="min"
                         )
                     ),
                     vol.Required(
                         CONF_DAILY_TARGET, default=current_daily
                     ): NumberSelector(
                         NumberSelectorConfig(
-                            min=0, max=24, step=0.5, mode=NumberSelectorMode.BOX, unit_of_measurement="h"
+                            min=0, max=24, step=0.5, mode="box", unit_of_measurement="h"
                         )
                     ),
                     vol.Required(
@@ -187,7 +185,7 @@ class JobClockOptionsFlowHandler(config_entries.OptionsFlow):
                         SelectSelectorConfig(
                             options=[{"label": v, "value": k} for k, v in WORK_DAYS_OPTIONS.items()],
                             multiple=True,
-                            mode=SelectSelectorMode.DROPDOWN,
+                            mode="dropdown",
                         )
                     ),
                 }
