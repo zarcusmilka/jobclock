@@ -1,0 +1,41 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Setup JobClock",
+                "description": "Configure your work tracking settings.",
+                "data": {
+                    "name": "Name (e.g. Max)",
+                    "person_entity": "Person to track",
+                    "work_zone": "Work Zone",
+                    "home_office_switch": "Home Office Switch (Input Boolean)",
+                    "entry_delay": "Entry Delay (min)",
+                    "exit_delay": "Exit Delay (min)",
+                    "min_stay_duration": "Min Stay Duration (min)",
+                    "daily_target_hours": "Daily Target (hours)",
+                    "work_days": "Work Days"
+                }
+            }
+        },
+        "error": {
+            "already_configured": "This name is already configured."
+        },
+        "abort": {
+            "already_configured": "Device is already configured"
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "JobClock Options",
+                "data": {
+                    "entry_delay": "Entry Delay (min)",
+                    "exit_delay": "Exit Delay (min)",
+                    "min_stay_duration": "Min Stay Duration (min)",
+                    "daily_target_hours": "Daily Target (hours)",
+                    "work_days": "Work Days"
+                }
+            }
+        }
+    }
+}
