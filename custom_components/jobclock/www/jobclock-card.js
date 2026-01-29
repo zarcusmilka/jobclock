@@ -5,6 +5,7 @@ const css = LitElement.prototype.css;
 
 class JobClockCard extends LitElement {
   static get properties() {
+    console.info("%c JobClock Card v1.2.3 Loaded ", "color: white; background: #34c759; font-weight: bold;");
     return {
       hass: {},
       config: {},

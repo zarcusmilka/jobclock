@@ -8,7 +8,7 @@ const css = LitElement.prototype.css;
 // BUT: The panel loads its own module. We need to ensure jobclock-card is available.
 // We can import it here if it's an ES module.
 // Import the card logic/styles
-import "/jobclock_static/jobclock-card.js";
+import "/jobclock_static/jobclock-card.js?v=1.2.3";
 
 class JobClockPanel extends LitElement {
   static get properties() {
