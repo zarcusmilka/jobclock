@@ -68,7 +68,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if "jobclock_panel_registered" not in hass.data[DOMAIN]:
         # Serve the 'www' directory
         path = hass.config.path("custom_components", "jobclock", "www")
-        hass.http.register_static_path("/jobclock_static", path)
+        await hass.http.async_register_static_paths([
+            websocket_api.StaticPathConfig(
+                "/jobclock_static", path, cache_headers=True
+            )
+        ])
         
         # Register the panel
         # Note: We point to the JS file. The frontend will load it.
