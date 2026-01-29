@@ -1,0 +1,41 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "JobClock Einrichtung",
+                "description": "Konfigurieren Sie die Zeiterfassung für eine Person.",
+                "data": {
+                    "name": "Anzeigename (z.B. Marcus)",
+                    "person_entity": "Person (die überwacht wird)",
+                    "work_zone": "Arbeits-Zone",
+                    "home_office_switch": "Home-Office Schalter (Input Boolean)",
+                    "entry_delay": "Ankunfts-Verzögerung (Min)",
+                    "exit_delay": "Abgangs-Verzögerung (Min)",
+                    "min_stay_duration": "Mindest-Anwesenheit (Min)",
+                    "daily_target_hours": "Tagesziel (Stunden)",
+                    "work_days": "Arbeitstage"
+                }
+            }
+        },
+        "error": {
+            "already_configured": "Dieser Name ist bereits konfiguriert."
+        },
+        "abort": {
+            "already_configured": "Gerät ist bereits konfiguriert"
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "JobClock Einstellungen",
+                "data": {
+                    "entry_delay": "Ankunfts-Verzögerung (Min)",
+                    "exit_delay": "Abgangs-Verzögerung (Min)",
+                    "min_stay_duration": "Mindest-Anwesenheit (Min)",
+                    "daily_target_hours": "Tagesziel (Stunden)",
+                    "work_days": "Arbeitstage"
+                }
+            }
+        }
+    }
+}
