@@ -76,22 +76,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         ])
         
         # Register the panel
-        from homeassistant.components.frontend import async_register_panel
+        # Try to use panel_custom component
+        from homeassistant.components import panel_custom
         
-        async_register_panel(
-             hass,
-             "jobclock",
-             "jobclock-panel",
-             sidebar_title="JobClock",
-             sidebar_icon="mdi:briefcase-clock",
-             frontend_url_path="jobclock",
-             config={"_panel_custom": {
-                 "name": "jobclock-panel",
-                 "module_url": "/jobclock_static/jobclock-panel.js"
-             }}
-        )
-        
-        hass.data[DOMAIN]["jobclock_panel_registered"] = True
+        try:
+            await panel_custom.async_register_panel(
+                hass,
+                webcomponent_name="jobclock-panel",
+                frontend_url_path="jobclock",
+                module_url="/jobclock_static/jobclock-panel.js",
+                sidebar_title="JobClock",
+                sidebar_icon="mdi:briefcase-clock",
+                require_admin=False,
+            )
+            hass.data[DOMAIN]["jobclock_panel_registered"] = True
+        except Exception as e:
+            _LOGGER.error("Failed to register JobClock panel: %s", e)
+            # Fallback or older method if needed, but for now we catch to avoid boot loop
+
     
     instance = JobClockInstance(hass, entry)
     await instance.async_initialize()
