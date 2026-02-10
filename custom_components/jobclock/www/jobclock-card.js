@@ -310,9 +310,13 @@ class JobClockCard extends LitElement {
         <!-- CALENDAR -->
         <div class="calendar-container">
             <div class="cal-nav">
-                <ha-icon-button class="icon-btn" icon="mdi:chevron-left" @click=${() => this.changeMonth(-1)}></ha-icon-button>
+                <div class="nav-btn" @click=${() => this.changeMonth(-1)}>
+                    <ha-icon icon="mdi:chevron-left"></ha-icon>
+                </div>
                 <div class="cal-title">${monthName}</div>
-                <ha-icon-button class="icon-btn" icon="mdi:chevron-right" @click=${() => this.changeMonth(1)}></ha-icon-button>
+                <div class="nav-btn" @click=${() => this.changeMonth(1)}>
+                    <ha-icon icon="mdi:chevron-right"></ha-icon>
+                </div>
             </div>
             
             <div class="cal-grid">

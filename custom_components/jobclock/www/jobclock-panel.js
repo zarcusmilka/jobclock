@@ -120,7 +120,7 @@ class JobClockPanel extends LitElement {
       :host {
         background-color: var(--primary-background-color);
         display: block;
-        height: 100vh;
+        height: 100%;
         overflow: hidden;
       }
       .panel {
