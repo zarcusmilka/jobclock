@@ -653,6 +653,18 @@ class JobClockCard extends LitElement {
         padding: 4px 0;
         border-bottom: 1px solid rgba(255,255,255,0.05);
       }
+      .nav-btn {
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 50%;
+        transition: background 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .nav-btn:hover {
+        background: rgba(255,255,255,0.1);
+      }
     `;
   }
 }
