@@ -105,11 +105,13 @@ class JobClockPanel extends LitElement {
     const current = this._instances.find(i => i.id === this._selectedInstance);
     if (!current) return html`Select an instance`;
 
-    // Pass a fake config object to satisfy the card's expectation
-    const cardConfig = { entity: current.entity_id };
+    // Memoize config to prevent object identity change on every render
+    if (!this._cardConfig || this._cardConfig.entity !== current.entity_id) {
+      this._cardConfig = { entity: current.entity_id };
+    }
 
     return html`
-        <jobclock-card .hass=${this.hass} .config=${cardConfig}></jobclock-card>
+        <jobclock-card .hass=${this.hass} .config=${this._cardConfig}></jobclock-card>
       `;
   }
 

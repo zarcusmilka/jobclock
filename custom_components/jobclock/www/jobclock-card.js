@@ -27,6 +27,21 @@ class JobClockCard extends LitElement {
     this._editorOpen = false;
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    // Start timer for live clock update
+    this._timer = setInterval(() => {
+      if (this.config?.entity && this.hass?.states[this.config.entity]?.state === 'working') {
+        this.requestUpdate();
+      }
+    }, 1000);
+  }
+
+  disconnectedCallback() {
+    if (this._timer) clearInterval(this._timer);
+    super.disconnectedCallback();
+  }
+
   setConfig(config) {
     if (!config.entity) {
       throw new Error("Please define a JobClock sensor entity");
