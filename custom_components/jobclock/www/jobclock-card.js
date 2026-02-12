@@ -1,11 +1,11 @@
 
-const LitElement = Object.getPrototypeOf(customElements.get("ha-panel-lovelace") || customElements.get("hc-main"));
-const html = LitElement.prototype.html;
-const css = LitElement.prototype.css;
+const LitElement = Object.getPrototypeOf(customElements.get("ha-panel-lovelace") || customElements.get("hc-main") || document.createElement("div"));
+const html = LitElement.prototype.html || ((strings, ...values) => strings[0]);
+const css = LitElement.prototype.css || ((strings, ...values) => strings[0]);
 
-class JobClockCard extends LitElement {
+class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement : HTMLElement) {
   static get properties() {
-    console.info("%c JobClock Card v1.3.1 Loaded ", "color: white; background: #6366f1; font-weight: bold;");
+    console.info("%c JobClock Card v1.3.2 Loaded ", "color: white; background: #6366f1; font-weight: bold;");
     return {
       hass: {},
       config: {},
@@ -28,7 +28,7 @@ class JobClockCard extends LitElement {
   }
 
   connectedCallback() {
-    super.connectedCallback();
+    if (super.connectedCallback) super.connectedCallback();
     this._timer = setInterval(() => {
       if (this.config?.entity && this.hass?.states[this.config.entity]?.state === 'working') {
         this.requestUpdate();
@@ -38,29 +38,20 @@ class JobClockCard extends LitElement {
 
   disconnectedCallback() {
     if (this._timer) clearInterval(this._timer);
-    super.disconnectedCallback();
+    if (super.disconnectedCallback) super.disconnectedCallback();
   }
 
   setConfig(config) {
-    if (!config.entity) throw new Error("Please define a JobClock sensor entity");
     this.config = config;
   }
 
   getCardSize() { return 10; }
 
   updated(changedProps) {
-    if (changedProps.has("config")) {
-      const oldConfig = changedProps.get("config");
-      if (oldConfig?.entity !== this.config?.entity) {
-        this._entry_id = null;
-        this._data = {};
-        this.fetchData();
-      }
-    }
-    if (changedProps.has("hass") && this.config.entity) {
-      if (!this._entry_id) {
+    if (changedProps.has("config") || changedProps.has("hass")) {
+      if (!this._entry_id && this.config?.entity && this.hass?.states[this.config.entity]) {
         const stateObj = this.hass.states[this.config.entity];
-        if (stateObj && stateObj.attributes.entry_id) {
+        if (stateObj.attributes && stateObj.attributes.entry_id) {
           this._entry_id = stateObj.attributes.entry_id;
           this.fetchData();
         }
@@ -69,7 +60,7 @@ class JobClockCard extends LitElement {
   }
 
   async fetchData() {
-    if (!this._entry_id) return;
+    if (!this._entry_id || !this.hass) return;
     this._loading = true;
 
     const year = this._currentMonth.getFullYear();
@@ -85,12 +76,15 @@ class JobClockCard extends LitElement {
         end_date: endDate
       });
       const map = {};
-      result.forEach(d => map[d.date] = d);
+      if (Array.isArray(result)) {
+        result.forEach(d => map[d.date] = d);
+      }
       this._data = map;
     } catch (e) {
       console.error("JobClock Error", e);
     } finally {
       this._loading = false;
+      this.requestUpdate();
     }
   }
 
@@ -146,26 +140,25 @@ class JobClockCard extends LitElement {
   }
 
   render() {
-    if (!this._data || !this.config) return html``;
-    const { _currentMonth: currentMonth } = this;
-    const stateObj = this.hass.states[this.config.entity];
+    if (!this.hass) return html`<div>Loading Hass...</div>`;
+    const stateObj = this.config?.entity ? this.hass.states[this.config.entity] : null;
     const friendlyName = stateObj?.attributes?.friendly_name || "JobClock";
     const switchEntity = stateObj?.attributes?.switch_entity;
-    const switchStateObj = switchEntity ? this.hass.states[switchEntity] : null;
-    const isHO = switchStateObj?.state === 'on';
-    const monthStr = currentMonth.toISOString().slice(0, 7);
-    const monthName = currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
+    const isWorking = stateObj?.state === "working";
+    const isHO = switchEntity ? this.hass.states[switchEntity]?.state === 'on' : false;
+
+    const monthName = this._currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
+    const monthStr = this._currentMonth.toISOString().slice(0, 7);
 
     let totalSeconds = 0;
     let totalTarget = 0;
     Object.keys(this._data).forEach(k => {
       if (k.startsWith(monthStr)) {
-        totalSeconds += this._data[k].duration;
-        totalTarget += this._data[k].target;
+        totalSeconds += this._data[k].duration || 0;
+        totalTarget += this._data[k].target || 0;
       }
     });
 
-    const isWorking = stateObj?.state === "working";
     const sessionStart = stateObj?.attributes?.session_start;
     let timerDisplay = "00:00";
     let subText = "Bereit zur Arbeit";
@@ -249,7 +242,7 @@ class JobClockCard extends LitElement {
           </div>
           <div class="cal-grid">
             ${["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].map(d => html`<div class="cal-day-name">${d}</div>`)}
-            ${this.renderCalendarDays(currentMonth)}
+            ${this.renderCalendarDays(this._currentMonth)}
           </div>
         </div>
 
@@ -279,21 +272,21 @@ class JobClockCard extends LitElement {
       if (dayData?.type === 'sick') classes += " sick";
 
       days.push(html`
-        <div class="${classes}" @click=${() => this.openEditor(dStr, dayData)}>
-          <span class="day-num">${i}</span>
-          ${dayData?.duration > 0 || dayData?.type !== 'work' ? html`
-            <span class="day-time">
-              ${dayData.type === 'vacation' ? '🏝️' : dayData.type === 'sick' ? '🤒' : (dayData.duration / 3600).toFixed(1) + 'h'}
-            </span>
-          ` : ""}
-        </div>
-      `);
+          <div class="${classes}" @click=${() => this.openEditor(dStr, dayData)}>
+            <span class="day-num">${i}</span>
+            ${dayData?.duration > 0 || dayData?.type !== 'work' ? html`
+              <span class="day-time">
+                ${dayData?.type === 'vacation' ? '🏝️' : dayData?.type === 'sick' ? '🤒' : (dayData?.duration / 3600).toFixed(1) + 'h'}
+              </span>
+            ` : ""}
+          </div>
+        `);
     }
     return days;
   }
 
   _toggleWork() {
-    const stateObj = this.hass.states[this.config.entity];
+    const stateObj = this.config?.entity ? this.hass.states[this.config.entity] : null;
     const switchEntity = stateObj?.attributes?.switch_entity;
     if (switchEntity) this.hass.callService("homeassistant", "toggle", { entity_id: switchEntity });
     else alert("Bitte konfiguriere einen Schalter in den Einstellungen.");
@@ -337,7 +330,6 @@ class JobClockCard extends LitElement {
         --jc-primary: #6366f1;
         --jc-success: #10b981;
         --jc-danger: #ef4444;
-        --jc-warning: #f59e0b;
         --jc-bg: #0f172a;
         --jc-card: rgba(30, 41, 59, 0.7);
         --jc-glass: rgba(255, 255, 255, 0.03);
@@ -358,57 +350,14 @@ class JobClockCard extends LitElement {
         overflow: hidden;
       }
 
-      /* Header */
-      .card-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 32px;
-      }
-      .brand {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        font-size: 1.25rem;
-        font-weight: 700;
-        background: linear-gradient(to right, #818cf8, #c084fc);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-      }
+      .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
+      .brand { display: flex; align-items: center; gap: 12px; font-size: 1.25rem; font-weight: 700; background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
       .brand ha-icon { --mdc-icon-size: 28px; color: #818cf8; -webkit-text-fill-color: initial; }
-      .header-actions ha-icon-button { color: var(--jc-text-dim); transition: color 0.2s; }
-      .header-actions ha-icon-button:hover { color: var(--jc-text); }
+      .header-actions ha-icon-button { color: var(--jc-text-dim); }
 
-      /* Hero Section */
-      .hero {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 32px;
-        margin-bottom: 40px;
-      }
-
-      .glass-orb {
-        width: 220px;
-        height: 220px;
-        border-radius: 50%;
-        background: var(--jc-glass);
-        border: 1px solid var(--jc-glass-border);
-        backdrop-filter: blur(12px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        position: relative;
-        cursor: pointer;
-        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s;
-        box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
-      }
-      .glass-orb:hover { transform: scale(1.05); }
-      .glass-orb.active {
-        border-color: var(--jc-primary);
-        box-shadow: 0 0 40px -10px var(--jc-primary);
-        animation: pulse 2s infinite;
-      }
+      .hero { display: flex; flex-direction: column; align-items: center; gap: 32px; margin-bottom: 40px; }
+      .glass-orb { width: 220px; height: 220px; border-radius: 50%; background: var(--jc-glass); border: 1px solid var(--jc-glass-border); backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; transition: transform 0.3s; }
+      .glass-orb.active { border-color: var(--jc-primary); animation: pulse 2s infinite; }
       
       @keyframes pulse {
         0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
@@ -416,194 +365,45 @@ class JobClockCard extends LitElement {
         100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
       }
 
-      .orb-content {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-      }
-      .timer {
-        font-size: 3rem;
-        font-weight: 800;
-        letter-spacing: -2px;
-        line-height: 1;
-        margin-bottom: 4px;
-        font-variant-numeric: tabular-nums;
-      }
-      .status-label {
-        font-size: 0.75rem;
-        font-weight: 700;
-        letter-spacing: 2px;
-        color: var(--jc-primary);
-        margin-bottom: 8px;
-      }
-      .sub-label {
-        font-size: 0.875rem;
-        color: var(--jc-text-dim);
-      }
+      .orb-content { display: flex; flex-direction: column; align-items: center; }
+      .timer { font-size: 3rem; font-weight: 800; }
+      .status-label { font-size: 0.75rem; color: var(--jc-primary); font-weight: 700; letter-spacing: 2px; }
+      .sub-label { font-size: 0.875rem; color: var(--jc-text-dim); }
 
-      .hero-actions {
-        display: flex;
-        gap: 16px;
-        width: 100%;
-        max-width: 320px;
-      }
-      .action-btn {
-        flex: 1;
-        height: 48px;
-        border-radius: 16px;
-        border: none;
-        background: var(--jc-glass);
-        color: var(--jc-text);
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        cursor: pointer;
-        transition: all 0.2s;
-        border: 1px solid var(--jc-glass-border);
-      }
-      .action-btn:hover { background: rgba(255,255,255,0.08); }
-      .action-btn.start { background: var(--jc-success); color: white; border: none; }
-      .action-btn.stop { background: var(--jc-danger); color: white; border: none; }
-      .action-btn.mode.ho { border-color: var(--jc-primary); color: var(--jc-primary); }
+      .hero-actions { display: flex; gap: 16px; width: 100%; max-width: 320px; }
+      .action-btn { flex: 1; height: 48px; border-radius: 16px; border: 1px solid var(--jc-glass-border); background: var(--jc-glass); color: var(--jc-text); font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+      .action-btn.start { background: var(--jc-success); border: none; }
+      .action-btn.stop { background: var(--jc-danger); border: none; }
+      .action-btn.ho { border-color: var(--jc-primary); color: var(--jc-primary); }
 
-      /* Stats Grid */
-      .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 12px;
-        margin-bottom: 32px;
-      }
-      .stat-item {
-        background: var(--jc-glass);
-        padding: 16px;
-        border-radius: 20px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        border: 1px solid var(--jc-glass-border);
-      }
-      .stat-item .val { font-size: 1.25rem; font-weight: 700; margin-bottom: 4px; }
-      .stat-item .lbl { font-size: 0.75rem; color: var(--jc-text-dim); text-transform: uppercase; font-weight: 600; }
+      .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 32px; }
+      .stat-item { background: var(--jc-glass); padding: 16px; border-radius: 20px; border: 1px solid var(--jc-glass-border); display: flex; flex-direction: column; align-items: center; }
+      .stat-item .val { font-size: 1.25rem; font-weight: 700; }
+      .stat-item .lbl { font-size: 0.75rem; color: var(--jc-text-dim); text-transform: uppercase; }
       .stat-item .pos { color: var(--jc-success); }
       .stat-item .neg { color: var(--jc-danger); }
 
-      /* Calendar */
-      .calendar-section {
-        background: var(--jc-card);
-        border-radius: 20px;
-        padding: 20px;
-        border: 1px solid var(--jc-glass-border);
-      }
-      .cal-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 20px;
-      }
-      .cal-title { font-weight: 700; font-size: 1.1rem; }
-      .nav-btn {
-        background: none;
-        border: none;
-        color: var(--jc-text-dim);
-        cursor: pointer;
-        padding: 4px;
-        border-radius: 8px;
-      }
-      .nav-btn:hover { background: rgba(255,255,255,0.05); color: var(--jc-text); }
+      .calendar-section { background: var(--jc-card); border-radius: 20px; padding: 20px; border: 1px solid var(--jc-glass-border); }
+      .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+      .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+      .cal-day-name { text-align: center; font-size: 0.75rem; color: var(--jc-text-dim); }
+      .cal-day { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 10px; background: rgba(255,255,255,0.02); cursor: pointer; }
+      .cal-day.today { border: 1px solid var(--jc-primary); }
+      .cal-day.vacation { color: var(--jc-success); }
+      .cal-day.sick { color: var(--jc-danger); }
+      .day-time { font-size: 0.65rem; color: var(--jc-text-dim); }
 
-      .cal-grid {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        gap: 4px;
-      }
-      .cal-day-name {
-        text-align: center;
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: var(--jc-text-dim);
-        padding-bottom: 8px;
-      }
-      .cal-day {
-        aspect-ratio: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.875rem;
-        border-radius: 10px;
-        cursor: pointer;
-        transition: all 0.2s;
-        position: relative;
-        background: rgba(255,255,255,0.02);
-      }
-      .cal-day:hover { background: rgba(255,255,255,0.08); transform: translateY(-2px); }
-      .cal-day.empty { background: none; cursor: default; }
-      .cal-day.empty:hover { transform: none; }
-      .cal-day.today { border: 1px solid var(--jc-primary); background: rgba(99, 102, 241, 0.1); }
-      .cal-day.vacation { background: rgba(16, 185, 129, 0.1); color: var(--jc-success); }
-      .cal-day.sick { background: rgba(239, 68, 68, 0.1); color: var(--jc-danger); }
-      
-      .day-num { font-weight: 500; }
-      .day-time { font-size: 0.65rem; color: var(--jc-text-dim); margin-top: 2px; }
-      .vacation .day-time, .sick .day-time { color: inherit; }
-
-      /* Modal */
-      .modal-overlay {
-        position: fixed;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(0,0,0,0.8);
-        backdrop-filter: blur(8px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-        padding: 20px;
-      }
-      .modal-content {
-        background: #1e293b;
-        padding: 24px;
-        border-radius: 20px;
-        width: 100%;
-        max-width: 400px;
-        border: 1px solid var(--jc-glass-border);
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-      }
-      .modal-content h3 { margin: 0 0 20px 0; font-size: 1.25rem; }
+      .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+      .modal-content { background: #1e293b; padding: 24px; border-radius: 20px; width: 90%; max-width: 400px; }
       .input-field { margin-bottom: 20px; }
-      .input-field label { display: block; font-size: 0.875rem; color: var(--jc-text-dim); margin-bottom: 8px; }
-      .input-field input, .input-field select {
-        width: 100%;
-        height: 44px;
-        background: #0f172a;
-        border: 1px solid var(--jc-glass-border);
-        border-radius: 12px;
-        color: white;
-        padding: 0 12px;
-        box-sizing: border-box;
-      }
-      .modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; }
-      .btn { padding: 10px 20px; border-radius: 12px; border: none; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
+      .input-field input, .input-field select { width: 100%; height: 44px; background: #0f172a; border: 1px solid var(--jc-glass-border); border-radius: 12px; color: white; padding: 0 12px; }
+      .modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
+      .btn { padding: 10px 20px; border-radius: 12px; border: none; font-weight: 600; cursor: pointer; }
       .btn.primary { background: var(--jc-primary); color: white; }
-      .btn.secondary { background: var(--jc-glass); color: var(--jc-text); }
-      .btn:hover { opacity: 0.9; }
-
-      @media (max-width: 450px) {
-        ha-card { padding: 16px; }
-        .timer { font-size: 2.5rem; }
-        .glass-orb { width: 180px; height: 180px; }
-      }
     `;
   }
 }
 
 customElements.define("jobclock-card", JobClockCard);
-
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: "jobclock-card",
-  name: "JobClock Dashboard",
-  description: "Modern Time Tracking Dashboard"
-});
+window.customCards.push({ type: "jobclock-card", name: "JobClock Dashboard", description: "Modern Time Tracking" });
