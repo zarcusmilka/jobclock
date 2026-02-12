@@ -12,7 +12,7 @@ function formatDateLocal(date) {
 
 class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement : HTMLElement) {
   static get properties() {
-    console.info("%c JobClock Card v1.3.3 Loaded ", "color: white; background: #6366f1; font-weight: bold;");
+    console.info("%c JobClock Card v1.3.4 Loaded ", "color: white; background: #6366f1; font-weight: bold;");
     return {
       hass: {},
       config: {},
@@ -57,7 +57,6 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
 
   updated(changedProps) {
     if (changedProps.has("config")) {
-      // Reset state for new entity to ensure data isolation
       this._entry_id = null;
       this._data = {};
       this.requestUpdate();
@@ -365,49 +364,50 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
         overflow: hidden;
       }
 
-      .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
-      .brand { display: flex; align-items: center; gap: 12px; font-size: 1.25rem; font-weight: 700; background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-      .brand ha-icon { --mdc-icon-size: 28px; color: #818cf8; -webkit-text-fill-color: initial; }
+      .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+      .brand { display: flex; align-items: center; gap: 12px; font-size: 1.15rem; font-weight: 700; background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+      .brand ha-icon { --mdc-icon-size: 24px; color: #818cf8; -webkit-text-fill-color: initial; }
       .header-actions ha-icon-button { color: var(--jc-text-dim); }
 
-      .hero { display: flex; flex-direction: column; align-items: center; gap: 32px; margin-bottom: 40px; }
-      .glass-orb { width: 220px; height: 220px; border-radius: 50%; background: var(--jc-glass); border: 1px solid var(--jc-glass-border); backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; transition: transform 0.3s; }
+      .hero { display: flex; flex-direction: column; align-items: center; gap: 24px; margin-bottom: 32px; }
+      .glass-orb { width: 180px; height: 180px; border-radius: 50%; background: var(--jc-glass); border: 1px solid var(--jc-glass-border); backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; transition: transform 0.3s; }
       .glass-orb.active { border-color: var(--jc-primary); animation: pulse 2s infinite; }
       
       @keyframes pulse {
         0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
-        70% { box-shadow: 0 0 0 20px rgba(99, 102, 241, 0); }
+        70% { box-shadow: 0 0 0 15px rgba(99, 102, 241, 0); }
         100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
       }
 
       .orb-content { display: flex; flex-direction: column; align-items: center; }
-      .timer { font-size: 3rem; font-weight: 800; }
-      .status-label { font-size: 0.75rem; color: var(--jc-primary); font-weight: 700; letter-spacing: 2px; }
-      .sub-label { font-size: 0.875rem; color: var(--jc-text-dim); }
+      .timer { font-size: 2.5rem; font-weight: 800; }
+      .status-label { font-size: 0.7rem; color: var(--jc-primary); font-weight: 700; letter-spacing: 2px; }
+      .sub-label { font-size: 0.8rem; color: var(--jc-text-dim); }
 
-      .hero-actions { display: flex; gap: 16px; width: 100%; max-width: 320px; }
-      .action-btn { flex: 1; height: 48px; border-radius: 16px; border: 1px solid var(--jc-glass-border); background: var(--jc-glass); color: var(--jc-text); font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+      .hero-actions { display: flex; gap: 12px; width: 100%; max-width: 280px; }
+      .action-btn { flex: 1; height: 44px; border-radius: 14px; border: 1px solid var(--jc-glass-border); background: var(--jc-glass); color: var(--jc-text); font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.9rem; }
       .action-btn.start { background: var(--jc-success); border: none; }
       .action-btn.stop { background: var(--jc-danger); border: none; }
       .action-btn.ho { border-color: var(--jc-primary); color: var(--jc-primary); }
 
-      .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 32px; }
-      .stat-item { background: var(--jc-glass); padding: 16px; border-radius: 20px; border: 1px solid var(--jc-glass-border); display: flex; flex-direction: column; align-items: center; }
-      .stat-item .val { font-size: 1.25rem; font-weight: 700; }
-      .stat-item .lbl { font-size: 0.75rem; color: var(--jc-text-dim); text-transform: uppercase; }
+      .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 24px; }
+      .stat-item { background: var(--jc-glass); padding: 12px; border-radius: 16px; border: 1px solid var(--jc-glass-border); display: flex; flex-direction: column; align-items: center; }
+      .stat-item .val { font-size: 1.1rem; font-weight: 700; }
+      .stat-item .lbl { font-size: 0.65rem; color: var(--jc-text-dim); text-transform: uppercase; }
       .stat-item .pos { color: var(--jc-success); }
       .stat-item .neg { color: var(--jc-danger); }
 
-      .calendar-section { background: var(--jc-card); border-radius: 20px; padding: 20px; border: 1px solid var(--jc-glass-border); }
-      .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+      .calendar-section { background: var(--jc-card); border-radius: 16px; padding: 16px; border: 1px solid var(--jc-glass-border); }
+      .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+      .cal-title { font-size: 1rem; font-weight: 700; }
       .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-      .cal-day-name { text-align: center; font-size: 0.75rem; color: var(--jc-text-dim); }
-      .cal-day { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 10px; background: rgba(255,255,255,0.02); cursor: pointer; }
+      .cal-day-name { text-align: center; font-size: 0.7rem; color: var(--jc-text-dim); }
+      .cal-day { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 8px; background: rgba(255,255,255,0.02); cursor: pointer; font-size: 0.8rem; }
       .cal-day:hover { background: rgba(255,255,255,0.08); }
       .cal-day.today { border: 1px solid var(--jc-primary); background: rgba(99, 102, 241, 0.1); }
       .cal-day.vacation { color: var(--jc-success); }
       .cal-day.sick { color: var(--jc-danger); }
-      .day-time { font-size: 0.65rem; color: var(--jc-text-dim); }
+      .day-time { font-size: 0.6rem; color: var(--jc-text-dim); }
 
       .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 1000; }
       .modal-content { background: #1e293b; padding: 24px; border-radius: 20px; width: 90%; max-width: 400px; }
@@ -416,6 +416,19 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
       .modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
       .btn { padding: 10px 20px; border-radius: 12px; border: none; font-weight: 600; cursor: pointer; }
       .btn.primary { background: var(--jc-primary); color: white; }
+
+      @media (max-width: 450px) {
+          ha-card { padding: 16px; }
+          .hero { gap: 16px; margin-bottom: 24px; }
+          .glass-orb { width: 140px; height: 140px; }
+          .timer { font-size: 2rem; }
+          .stats-grid { gap: 8px; margin-bottom: 16px; }
+          .stat-item { padding: 8px; }
+          .stat-item .val { font-size: 0.95rem; }
+          .calendar-section { padding: 12px; }
+          .cal-grid { gap: 2px; }
+          .cal-day { font-size: 0.75rem; }
+      }
     `;
   }
 }

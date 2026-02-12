@@ -3,7 +3,7 @@ const LitElement = Object.getPrototypeOf(customElements.get("ha-panel-lovelace")
 const html = LitElement.prototype.html;
 const css = LitElement.prototype.css;
 
-import "/jobclock_static/jobclock-card.js?v=1.3.3";
+import "/jobclock_static/jobclock-card.js?v=1.3.4";
 
 class JobClockPanel extends LitElement {
   static get properties() {
@@ -65,13 +65,15 @@ class JobClockPanel extends LitElement {
             <ha-menu-button .hass=${this.hass} .narrow=${this.narrow}></ha-menu-button>
             <div class="title">JobClock</div>
             ${this._instances.length > 1 ? html`
-              <div class="tabs">
-                ${this._instances.map(i => html`
-                  <div class="tab ${this._selectedInstance === i.id ? 'active' : ''}"
-                       @click=${() => this._selectedInstance = i.id}>
-                    ${i.name}
-                  </div>
-                `)}
+              <div class="tabs-container">
+                <div class="tabs">
+                  ${this._instances.map(i => html`
+                    <div class="tab ${this._selectedInstance === i.id ? 'active' : ''}"
+                         @click=${() => this._selectedInstance = i.id}>
+                      ${i.name}
+                    </div>
+                  `)}
+                </div>
               </div>
             ` : ""}
           </div>
@@ -118,10 +120,11 @@ class JobClockPanel extends LitElement {
         height: 100%;
       }
       .header {
-        background-color: rgba(30, 41, 59, 0.5);
-        backdrop-filter: blur(12px);
+        background-color: rgba(30, 41, 59, 0.7);
+        backdrop-filter: blur(16px);
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         z-index: 100;
+        padding: 4px 0;
       }
       .header-content {
         height: 64px;
@@ -143,29 +146,39 @@ class JobClockPanel extends LitElement {
         flex: 1;
       }
       
-      .tabs {
+      .tabs-container {
         display: flex;
         height: 100%;
-        gap: 8px;
+        align-items: center;
+      }
+      .tabs {
+        display: flex;
+        gap: 12px;
+        background: rgba(0,0,0,0.2);
+        padding: 6px;
+        border-radius: 16px;
+        border: 1px solid rgba(255,255,255,0.05);
       }
       .tab {
-        padding: 0 16px;
-        height: 40px;
+        padding: 0 20px;
+        height: 36px;
         display: flex;
         align-items: center;
+        justify-content: center;
         border-radius: 12px;
         cursor: pointer;
-        font-weight: 600;
-        font-size: 0.875rem;
+        font-weight: 700;
+        font-size: 0.9rem;
         color: #94a3b8;
-        transition: all 0.2s;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         border: 1px solid transparent;
+        white-space: nowrap;
       }
-      .tab:hover { background: rgba(255,255,255,0.05); color: #f8fafc; }
+      .tab:hover { color: #f8fafc; background: rgba(255,255,255,0.05); }
       .tab.active {
-        background: rgba(99, 102, 241, 0.1);
-        color: #818cf8;
-        border-color: rgba(99, 102, 241, 0.3);
+        background: #6366f1;
+        color: white;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
       }
 
       .main-content {
@@ -191,9 +204,11 @@ class JobClockPanel extends LitElement {
       }
       
       @media (max-width: 600px) {
-        .header-content { padding: 0 8px; }
+        .header-content { padding: 0 8px; justify-content: space-between; }
         .title { display: none; }
-        .main-content { padding: 16px 8px; }
+        .main-content { padding: 12px 8px; }
+        .tabs { gap: 6px; padding: 4px; }
+        .tab { padding: 0 12px; height: 32px; font-size: 0.8rem; }
       }
     `;
   }
