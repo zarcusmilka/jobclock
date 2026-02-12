@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JobClock Dev Harness</title>
+    <style>
+        body {
+            background-color: #111;
+            color: #fff;
+            font-family: Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        /* Mock CSS Variables to match HA Dark Mode */
+        :root {
+            --primary-background-color: #111;
+            --secondary-background-color: #222;
+            --primary-text-color: #fff;
+            --secondary-text-color: #aaa;
+            --divider-color: #333;
+            --app-header-background-color: #1e1e1e;
+            --app-header-text-color: #fff;
+            --mdc-icon-size: 24px;
+        }
+        jobclock-card {
+            width: 100%;
+            max-width: 400px; /* Mobile width */
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Container for our card -->
+    <jobclock-card id="dev-card"></jobclock-card>
+
+    <script type="module">
+        import { LitElement, html, css } from 'https://cdn.jsdelivr.net/gh/lit/dist@2/core/lit-core.min.js';
+
+        // 1. Mock the HA LitElement environment
+        // HA's LitElement exposes html/css on the prototype (weirdly), based on how the card imports it.
+        // We shim it here so the card code works without modification.
+        LitElement.prototype.html = html;
+        LitElement.prototype.css = css;
+
+        // Define a fake panel so the card can find the base class
+        class FakePanel extends LitElement {}
+        customElements.define("ha-panel-lovelace", FakePanel);
+
+        // 2. Import the Card (Must be AFTER the shim)
+        import './jobclock-card.js';
+
+        // 3. Mock Data & HASS Object
+        const mockHass = {
+            states: {
+                "sensor.jobclock_marcus": {
+                    state: "working",
+                    attributes: {
+                        friendly_name: "JobClock Marcus",
+                        switch_entity: "switch.home_office",
+                        session_start: new Date(Date.now() - 3600 * 1000).toISOString(), // 1 hour ago
+                        entry_id: "mock_entry_id"
+                    }
+                },
+                "switch.home_office": {
+                    state: "on",
+                    attributes: { friendly_name: "Home Office" }
+                }
+            },
+            callWS: async (msg) => {
+                console.log("WS Call:", msg);
+                if (msg.type === "jobclock/get_data") {
+                    // Return fake history data
+                    const d = new Date();
+                    const todayStr = d.toISOString().split('T')[0];
+                    return [
+                        { date: todayStr, duration: 3600 + 1800, target: 28800, type: 'work', delta: -23400, sessions: [] }
+                    ];
+                }
+            },
+            callService: async (domain, service, data) => {
+                console.log("Service Call:", domain, service, data);
+                alert(`Service Call: ${domain}.${service}\nData: ${JSON.stringify(data)}`);
+            }
+        };
+
+        // 4. Initialize the Card
+        const card = document.getElementById('dev-card');
+        
+        // Wait for element to upgrade
+        await customElements.whenDefined('jobclock-card');
+        
+        // Pass mocks
+        card.setConfig({ entity: "sensor.jobclock_marcus" });
+        card.hass = mockHass;
+
+        // Simulate periodic updates (Live Timer)
+        setInterval(() => {
+            // Update the session_start to make the timer tick? 
+            // The card calculates diff from session_start, so we just need to trigger updated()
+            card.requestUpdate();
+        }, 1000);
+
+    </script>
+</body>
+</html>
