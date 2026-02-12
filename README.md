@@ -8,6 +8,9 @@ A smart work-time tracking integration for Home Assistant.
 
 
 
+> [!IMPORTANT]
+> **New UI Redesign (v1.3.0)**: JobClock now features a modern, premium Glassmorphism-inspired dashboard for a better user experience!
+
 ## Features
 
 - 📱 **Native Sidebar App**: integrated directly into Home Assistant's menu.

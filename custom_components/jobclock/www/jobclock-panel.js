@@ -3,12 +3,7 @@ const LitElement = Object.getPrototypeOf(customElements.get("ha-panel-lovelace")
 const html = LitElement.prototype.html;
 const css = LitElement.prototype.css;
 
-// Import the card logic/styles if possible, or simpler: 
-// Since we used customElements.define in jobclock-card.js, we assume it's loaded.
-// BUT: The panel loads its own module. We need to ensure jobclock-card is available.
-// We can import it here if it's an ES module.
-// Import the card logic/styles
-import "/jobclock_static/jobclock-card.js?v=1.2.3";
+import "/jobclock_static/jobclock-card.js?v=1.3.0";
 
 class JobClockPanel extends LitElement {
   static get properties() {
@@ -35,20 +30,13 @@ class JobClockPanel extends LitElement {
   }
 
   _findInstances() {
-    // Find all sensors that are JobClock sensors
-    // We look for entities with integration 'jobclock' 
-    // OR we look for the unique_id structure?
-    // Best: look for attributes.entry_id + domain sensor + starting with jobclock?
-
     const instances = [];
     Object.values(this.hass.states).forEach(stateObj => {
       if (stateObj.entity_id.startsWith("sensor.jobclock_") &&
         stateObj.entity_id.endsWith("_today") &&
         stateObj.attributes.entry_id) {
 
-        // Nice Name: "JobClock X Today" -> "X"
         const name = stateObj.attributes.friendly_name.replace("JobClock ", "").replace(" Today", "");
-
         instances.push({
           id: stateObj.attributes.entry_id,
           name: name,
@@ -57,10 +45,8 @@ class JobClockPanel extends LitElement {
       }
     });
 
-    // Sort
     instances.sort((a, b) => a.name.localeCompare(b.name));
 
-    // Check if diff (simple check)
     if (JSON.stringify(instances) !== JSON.stringify(this._instances)) {
       this._instances = instances;
       if (!this._selectedInstance && instances.length > 0) {
@@ -70,28 +56,29 @@ class JobClockPanel extends LitElement {
   }
 
   render() {
-    if (!this.hass) return html`Loading...`;
+    if (!this.hass) return html``;
 
     return html`
-      <div class="panel">
-        <div class="toolbar">
+      <div class="panel-root">
+        <div class="header">
+          <div class="header-content">
             <ha-menu-button .hass=${this.hass} .narrow=${this.narrow}></ha-menu-button>
             <div class="title">JobClock</div>
-            
             ${this._instances.length > 1 ? html`
-            <div class="tabs">
+              <div class="tabs">
                 ${this._instances.map(i => html`
-                    <div class="tab ${this._selectedInstance === i.id ? 'active' : ''}"
-                         @click=${() => this._selectedInstance = i.id}>
-                         ${i.name}
-                    </div>
+                  <div class="tab ${this._selectedInstance === i.id ? 'active' : ''}"
+                       @click=${() => this._selectedInstance = i.id}>
+                    ${i.name}
+                  </div>
                 `)}
-            </div>
+              </div>
             ` : ""}
+          </div>
         </div>
         
-        <div class="content">
-            ${this._renderContent()}
+        <div class="main-content">
+          ${this._renderContent()}
         </div>
       </div>
     `;
@@ -103,92 +90,110 @@ class JobClockPanel extends LitElement {
     }
 
     const current = this._instances.find(i => i.id === this._selectedInstance);
-    if (!current) return html`Select an instance`;
+    if (!current) return html`<div class="empty">Select an instance</div>`;
 
-    // Memoize config to prevent object identity change on every render
     if (!this._cardConfig || this._cardConfig.entity !== current.entity_id) {
       this._cardConfig = { entity: current.entity_id };
     }
 
     return html`
+      <div class="card-wrapper">
         <jobclock-card .hass=${this.hass} .config=${this._cardConfig}></jobclock-card>
-      `;
+      </div>
+    `;
   }
 
   static get styles() {
     return css`
       :host {
-        background-color: var(--primary-background-color);
+        background-color: #0f172a;
+        color: #f8fafc;
         display: block;
         height: 100%;
         overflow: hidden;
       }
-      .panel {
+      .panel-root {
         display: flex;
         flex-direction: column;
         height: 100%;
       }
-      .toolbar {
-        background-color: var(--app-header-background-color, #03a9f4);
-        color: var(--app-header-text-color, white);
+      .header {
+        background-color: rgba(30, 41, 59, 0.5);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        z-index: 100;
+      }
+      .header-content {
         height: 64px;
         display: flex;
         align-items: center;
         padding: 0 16px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        z-index: 10;
-        gap: 16px;
+        max-width: 1200px;
+        margin: 0 auto;
+        width: 100%;
+        box-sizing: border-box;
       }
       .title {
-        font-size: 20px;
-        font-weight: 500;
-        margin-right: auto;
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-left: 8px;
+        background: linear-gradient(to right, #818cf8, #c084fc);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        flex: 1;
       }
       
       .tabs {
         display: flex;
-        gap: 0;
         height: 100%;
-        align-items: flex-end;
+        gap: 8px;
       }
       .tab {
         padding: 0 16px;
-        height: 48px;
+        height: 40px;
         display: flex;
         align-items: center;
+        border-radius: 12px;
         cursor: pointer;
-        opacity: 0.7;
-        font-weight: 500;
-        text-transform: uppercase;
-        border-bottom: 2px solid transparent;
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: #94a3b8;
         transition: all 0.2s;
+        border: 1px solid transparent;
       }
+      .tab:hover { background: rgba(255,255,255,0.05); color: #f8fafc; }
       .tab.active {
-        opacity: 1;
-        border-bottom-color: var(--app-header-text-color, white);
-      }
-      .tab:hover {
-        opacity: 1;
-        background: rgba(255,255,255,0.1);
+        background: rgba(99, 102, 241, 0.1);
+        color: #818cf8;
+        border-color: rgba(99, 102, 241, 0.3);
       }
 
-      .content {
+      .main-content {
         flex: 1;
         overflow-y: auto;
-        padding: 16px;
+        padding: 24px 16px;
         display: flex;
         justify-content: center;
-        background: var(--primary-background-color);
+        background: #0f172a;
+        background-image: 
+          radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.05) 0px, transparent 50%),
+          radial-gradient(at 100% 0%, rgba(192, 132, 252, 0.05) 0px, transparent 50%);
       }
-      jobclock-card {
+      .card-wrapper {
         width: 100%;
         max-width: 800px;
-        display: block;
       }
       .empty {
-        margin-top: 40px;
-        color: var(--secondary-text-color);
-        font-size: 1.2rem;
+        margin-top: 64px;
+        text-align: center;
+        color: #94a3b8;
+        font-size: 1.125rem;
+      }
+      
+      @media (max-width: 600px) {
+        .header-content { padding: 0 8px; }
+        .title { display: none; }
+        .main-content { padding: 16px 8px; }
       }
     `;
   }
