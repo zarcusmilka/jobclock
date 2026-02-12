@@ -3,9 +3,16 @@ const LitElement = Object.getPrototypeOf(customElements.get("ha-panel-lovelace")
 const html = LitElement.prototype.html || ((strings, ...values) => strings[0]);
 const css = LitElement.prototype.css || ((strings, ...values) => strings[0]);
 
+function formatDateLocal(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement : HTMLElement) {
   static get properties() {
-    console.info("%c JobClock Card v1.3.2 Loaded ", "color: white; background: #6366f1; font-weight: bold;");
+    console.info("%c JobClock Card v1.3.3 Loaded ", "color: white; background: #6366f1; font-weight: bold;");
     return {
       hass: {},
       config: {},
@@ -25,6 +32,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     this._currentMonth = new Date();
     this._loading = false;
     this._editorOpen = false;
+    this._entry_id = null;
   }
 
   connectedCallback() {
@@ -48,6 +56,13 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
   getCardSize() { return 10; }
 
   updated(changedProps) {
+    if (changedProps.has("config")) {
+      // Reset state for new entity to ensure data isolation
+      this._entry_id = null;
+      this._data = {};
+      this.requestUpdate();
+    }
+
     if (changedProps.has("config") || changedProps.has("hass")) {
       if (!this._entry_id && this.config?.entity && this.hass?.states[this.config.entity]) {
         const stateObj = this.hass.states[this.config.entity];
@@ -65,8 +80,8 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
 
     const year = this._currentMonth.getFullYear();
     const month = this._currentMonth.getMonth();
-    const startDate = new Date(year, month, 1, 12).toISOString().split('T')[0];
-    const endDate = new Date(year, month + 1, 0, 12).toISOString().split('T')[0];
+    const startDate = formatDateLocal(new Date(year, month, 1));
+    const endDate = formatDateLocal(new Date(year, month + 1, 0));
 
     try {
       const result = await this.hass.callWS({
@@ -135,7 +150,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
     const link = document.createElement("a");
     link.href = encodeURI(csvContent);
-    link.download = `jobclock_export_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `jobclock_export_${formatDateLocal(new Date())}.csv`;
     link.click();
   }
 
@@ -148,7 +163,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     const isHO = switchEntity ? this.hass.states[switchEntity]?.state === 'on' : false;
 
     const monthName = this._currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
-    const monthStr = this._currentMonth.toISOString().slice(0, 7);
+    const monthStr = formatDateLocal(this._currentMonth).slice(0, 7);
 
     let totalSeconds = 0;
     let totalTarget = 0;
@@ -171,7 +186,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
       timerDisplay = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
       subText = "Aktive Sitzung";
     } else {
-      const todayStr = new Date().toISOString().slice(0, 10);
+      const todayStr = formatDateLocal(new Date());
       const todayData = this._data[todayStr];
       if (todayData) {
         const h = Math.floor(todayData.duration / 3600);
@@ -261,10 +276,10 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
 
     for (let i = 0; i < startOffset; i++) days.push(html`<div class="cal-day empty"></div>`);
 
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = formatDateLocal(new Date());
     for (let i = 1; i <= daysInMonth; i++) {
       const d = new Date(year, month, i);
-      const dStr = d.toISOString().slice(0, 10);
+      const dStr = formatDateLocal(d);
       const dayData = this._data[dStr];
       let classes = "cal-day";
       if (dStr === todayStr) classes += " today";
@@ -388,7 +403,8 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
       .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
       .cal-day-name { text-align: center; font-size: 0.75rem; color: var(--jc-text-dim); }
       .cal-day { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 10px; background: rgba(255,255,255,0.02); cursor: pointer; }
-      .cal-day.today { border: 1px solid var(--jc-primary); }
+      .cal-day:hover { background: rgba(255,255,255,0.08); }
+      .cal-day.today { border: 1px solid var(--jc-primary); background: rgba(99, 102, 241, 0.1); }
       .cal-day.vacation { color: var(--jc-success); }
       .cal-day.sick { color: var(--jc-danger); }
       .day-time { font-size: 0.65rem; color: var(--jc-text-dim); }

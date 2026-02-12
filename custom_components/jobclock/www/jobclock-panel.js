@@ -3,7 +3,7 @@ const LitElement = Object.getPrototypeOf(customElements.get("ha-panel-lovelace")
 const html = LitElement.prototype.html;
 const css = LitElement.prototype.css;
 
-import "/jobclock_static/jobclock-card.js?v=1.3.2";
+import "/jobclock_static/jobclock-card.js?v=1.3.3";
 
 class JobClockPanel extends LitElement {
   static get properties() {
