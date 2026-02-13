@@ -55,6 +55,12 @@ WS_UPDATE_ENTRY_SCHEMA = websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend({
     vol.Optional("status_type"): str, # 'work', 'sick', 'vacation'
 })
 
+WS_MANUAL_TOGGLE_SCHEMA = websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend({
+    vol.Required("type"): "jobclock/manual_toggle",
+    vol.Required("entry_id"): str,
+    vol.Required("action"): str,  # 'start' or 'stop'
+})
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up JobClock from a config entry."""
     hass.data.setdefault(DOMAIN, {})
@@ -63,6 +69,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if "jobclock_api_registered" not in hass.data[DOMAIN]:
         websocket_api.async_register_command(hass, ws_get_data)
         websocket_api.async_register_command(hass, ws_update_entry)
+        websocket_api.async_register_command(hass, ws_manual_toggle)
         hass.data[DOMAIN]["jobclock_api_registered"] = True
 
     # Register Panel & Static Path
@@ -84,7 +91,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 hass,
                 webcomponent_name="jobclock-panel",
                 frontend_url_path="jobclock",
-                module_url="/jobclock_static/jobclock-panel.js?v=1.3.7",
+                module_url="/jobclock_static/jobclock-panel.js?v=1.3.8",
                 sidebar_title="JobClock",
                 sidebar_icon="mdi:briefcase-clock",
                 require_admin=False,
@@ -163,6 +170,38 @@ async def ws_update_entry(hass, connection, msg):
 
 ws_update_entry._ws_schema = WS_UPDATE_ENTRY_SCHEMA
 ws_update_entry._ws_command = "jobclock/update_entry"
+
+
+@websocket_api.async_response
+async def ws_manual_toggle(hass, connection, msg):
+    """Handle manual start/stop — bypasses all delays."""
+    entry_id = msg["entry_id"]
+    instance = hass.data[DOMAIN].get(entry_id)
+    if not instance:
+        connection.send_error(msg["id"], "instance_not_found", "Instance not found")
+        return
+
+    action = msg["action"]
+    now = dt_util.now()
+
+    # Cancel any pending delay timers
+    if instance._timer_remove:
+        instance._timer_remove()
+        instance._timer_remove = None
+        instance._pending_state = None
+
+    if action == "start" and not instance.is_working:
+        await instance._set_active(now)
+    elif action == "stop" and instance.is_working:
+        await instance._set_inactive(now, manual=True)
+
+    connection.send_result(msg["id"], {
+        "status": "ok",
+        "is_working": instance.is_working
+    })
+
+ws_manual_toggle._ws_schema = WS_MANUAL_TOGGLE_SCHEMA
+ws_manual_toggle._ws_command = "jobclock/manual_toggle"
 
 
 class JobClockInstance:
@@ -379,11 +418,10 @@ class JobClockInstance:
         await self._async_save_data()
         self._notify_sensors()
 
-    # --- Logic Conditions (Same as before) ---
+    # --- Logic Conditions ---
+    # Auto-tracking is ONLY based on zone presence.
+    # The switch_entity is used for Office/Home distinction only.
     def check_conditions(self) -> bool:
-        sw_state = self.hass.states.get(self.switch_entity)
-        if sw_state and sw_state.state == STATE_ON:
-            return True
         person_state = self.hass.states.get(self.person_entity)
         if person_state:
             zone_state = self.hass.states.get(self.zone_entity)
@@ -447,7 +485,7 @@ class JobClockInstance:
         self._notify_sensors()
         await self._async_save_data()
 
-    async def _set_inactive(self, end_time: datetime):
+    async def _set_inactive(self, end_time: datetime, manual: bool = False):
         if not self.session_start:
              self.is_working = False
              self._notify_sensors()
@@ -455,7 +493,8 @@ class JobClockInstance:
 
         duration = (end_time - self.session_start).total_seconds()
         
-        if duration >= self.min_stay.total_seconds():
+        # Manual stops always record; auto-stops respect min_stay
+        if manual or duration >= self.min_stay.total_seconds():
             today_str = self.session_start.date().isoformat()
             if today_str not in self.history:
                 self.history[today_str] = {"duration": 0, "type": "work", "sessions": []}
