@@ -27,7 +27,7 @@ const fmtDur = (seconds) => {
 
 class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement : HTMLElement) {
   static get properties() {
-    console.info("%c JobClock Card v1.4.4 Loaded ", "color: white; background: #6366f1; font-weight: bold;");
+    console.info("%c JobClock Card v1.5.0 Loaded ", "color: white; background: #6366f1; font-weight: bold;");
     return {
       hass: {},
       config: {},
@@ -97,8 +97,10 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
   openDayDetail(date, data) {
     this._detailDate = date;
     this._detailData = data || { duration: 0, type: "work", sessions: [] };
+    this._editSessions = JSON.parse(JSON.stringify(this._detailData.sessions || []));
+    this._editType = this._detailData.type || "work";
     this._detailOpen = true;
-    this._editorOpen = false;
+    this._editorOpen = true; // Always open in edit mode
     this._addFormOpen = false;
   }
 
@@ -320,9 +322,12 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
 
   _renderDayDetail() {
     const dd = this._detailData;
-    const isEditing = this._editorOpen;
-    const sessions = isEditing ? this._editSessions : (dd?.sessions || []);
-    const totalSeks = isEditing ? sessions.reduce((sum, s) => sum + ((new Date(s.end).getTime() - new Date(s.start).getTime()) / 1000), 0) : (dd?.duration || 0);
+    const sessions = this._editSessions;
+    const totalSeks = sessions.reduce((sum, s) => {
+      const start = new Date(s.start).getTime();
+      const end = new Date(s.end).getTime();
+      return sum + (isNaN(start) || isNaN(end) ? 0 : (end - start) / 1000);
+    }, 0);
     const totalH = (totalSeks / 3600).toFixed(2);
     const targetH = ((dd?.target || 0) / 3600).toFixed(1);
 
@@ -330,7 +335,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
       <div class="modal-overlay" @click=${this.closeDayDetail}>
         <div class="modal-content" @click=${e => e.stopPropagation()}>
           <div class="modal-header">
-            <h3>${fmtDate(this._detailDate)}</h3>
+            <h3 class="modal-title">${fmtDate(this._detailDate)}</h3>
             <button class="close-btn" @click=${this.closeDayDetail}><ha-icon icon="mdi:close"></ha-icon></button>
           </div>
 
@@ -340,58 +345,50 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
               ${sessions.map((s, i) => html`
                 <div class="session-row">
                   <span class="session-num">#${i + 1}</span>
-                  <span class="session-loc">${s.location === 'home' ? '🏠' : '🏢'}</span>
-                  ${isEditing ? html`
-                    <div class="session-edit-group">
-                        <input type="time" .value=${new Date(s.start).toTimeString().slice(0, 5)} @change=${e => { s.start = `${this._detailDate}T${e.target.value}:00`; this.requestUpdate(); }}>
-                        <span>—</span>
-                        <input type="time" .value=${new Date(s.end).toTimeString().slice(0, 5)} @change=${e => { s.end = `${this._detailDate}T${e.target.value}:00`; this.requestUpdate(); }}>
-                    </div>
-                    <button class="row-action del" @click=${() => this.deleteSession(i)}><ha-icon icon="mdi:delete-outline"></ha-icon></button>
-                  ` : html`
-                    <span class="session-time">${fmtTime(s.start)} — ${fmtTime(s.end)}</span>
-                    <span class="session-dur">${fmtDur(s.duration)}</span>
-                  `}
+                  <div class="session-edit-group">
+                      <input type="time" .value=${new Date(s.start).toTimeString().slice(0, 5)} @change=${e => { s.start = `${this._detailDate}T${e.target.value}:00`; this.requestUpdate(); }}>
+                      <span>—</span>
+                      <input type="time" .value=${new Date(s.end).toTimeString().slice(0, 5)} @change=${e => { s.end = `${this._detailDate}T${e.target.value}:00`; this.requestUpdate(); }}>
+                  </div>
+                  <select class="row-loc-sel" .value=${s.location || 'office'} @change=${e => { s.location = e.target.value; this.requestUpdate(); }}>
+                    <option value="office">🏢</option>
+                    <option value="home">🏠</option>
+                  </select>
+                  <button class="row-action del" @click=${() => this.deleteSession(i)}><ha-icon icon="mdi:trash-can-outline"></ha-icon></button>
                 </div>
               `)}
               ${sessions.length === 0 && !this._addFormOpen ? html`<div class="no-sessions">Keine Einträge</div>` : ""}
               
-              ${isEditing && this._addFormOpen ? html`
+              ${this._addFormOpen ? html`
                 <div class="session-row add-row">
                     <input type="time" id="new-start" value="08:00">
                     <span>—</span>
                     <input type="time" id="new-end" value="16:00">
-                    <select id="new-loc"><option value="office">🏢 Büro</option><option value="home">🏠 Home</option></select>
-                    <button class="row-action add" @click=${() => this.addSession(this.shadowRoot.getElementById('new-start').value, this.shadowRoot.getElementById('new-end').value, this.shadowRoot.getElementById('new-loc').value)}><ha-icon icon="mdi:check"></ha-icon></button>
+                    <select id="new-loc"><option value="office">🏢</option><option value="home">🏠</option></select>
+                    <button class="row-action add" @click=${() => this.addSession(this.shadowRoot.getElementById('new-start').value, this.shadowRoot.getElementById('new-end').value, this.shadowRoot.getElementById('new-loc').value)}><ha-icon icon="mdi:plus-circle-outline"></ha-icon></button>
                 </div>
-              ` : isEditing ? html`
-                <button class="btn-add-line" @click=${() => this._addFormOpen = true}><ha-icon icon="mdi:plus"></ha-icon> Eintrag hinzufügen</button>
-              ` : ""}
+              ` : html`
+                <button class="btn-add-line" @click=${() => this._addFormOpen = true}><ha-icon icon="mdi:plus"></ha-icon> Eintrag</button>
+              `}
             </div>
 
             <div class="day-summary">
-              <div class="sum-row"><span>Gesamt</span><span class="sum-val">${totalH}h</span></div>
+              <div class="sum-row"><span>Arbeitszeit</span><span class="sum-val">${totalH}h</span></div>
               <div class="sum-row"><span>Soll</span><span class="sum-val">${targetH}h</span></div>
               <div class="sum-row">
                 <span>Typ</span>
-                ${isEditing ? html`
-                    <select class="type-sel" .value=${this._editType} @change=${e => this._editType = e.target.value}>
-                        <option value="work">Arbeit</option>
-                        <option value="vacation">Urlaub</option>
-                        <option value="sick">Krank</option>
-                    </select>
-                ` : html`<span class="sum-val type-badge ${dd?.type}">${dd?.type === 'vacation' ? 'Urlaub' : dd?.type === 'sick' ? 'Krank' : 'Arbeit'}</span>`}
+                <select class="type-sel" .value=${this._editType} @change=${e => this._editType = e.target.value}>
+                    <option value="work">💼 Arbeit</option>
+                    <option value="vacation">🏝️ Urlaub</option>
+                    <option value="sick">🤒 Krank</option>
+                </select>
               </div>
             </div>
           </div>
 
           <div class="modal-footer">
-            ${isEditing ? html`
-                <button class="btn secondary" @click=${() => this._editorOpen = false}>Abbrechen</button>
-                <button class="btn primary" @click=${this.saveSessions}>Speichern</button>
-            ` : html`
-                <button class="btn-full" @click=${this.openEditor}><ha-icon icon="mdi:pencil-outline"></ha-icon> Bearbeiten</button>
-            `}
+            <button class="btn secondary" @click=${this.closeDayDetail}>Abbrechen</button>
+            <button class="btn primary" @click=${this.saveSessions}>Speichern</button>
           </div>
         </div>
       </div>
@@ -417,7 +414,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
         background-image: radial-gradient(circle at 50% -20%, #312e81 0%, transparent 60%);
         color: var(--jc-text);
         border-radius: 20px;
-        padding: 16px;
+        padding: 12px; /* Slimmer padding */
         font-family: 'Inter', -apple-system, sans-serif;
         border: 2px solid var(--jc-border);
         box-shadow: 0 20px 40px -12px rgba(0,0,0,0.5);
@@ -425,14 +422,14 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
       }
       ha-card.is-working { border-color: var(--jc-success); box-shadow: 0 0 25px rgba(16, 185, 129, 0.15), 0 20px 40px -12px rgba(0,0,0,0.5); }
 
-      .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-      .brand { display: flex; align-items: center; gap: 8px; font-size: 1.1rem; font-weight: 800; background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-      .brand ha-icon { --mdc-icon-size: 22px; color: #818cf8; -webkit-text-fill-color: initial; }
-      .header-actions ha-icon-button { color: var(--jc-dim); --mdc-icon-size: 18px; }
+      .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; padding: 0 4px; }
+      .brand { display: flex; align-items: center; gap: 8px; font-size: 0.95rem; font-weight: 800; background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+      .brand ha-icon { --mdc-icon-size: 18px; color: #818cf8; -webkit-text-fill-color: initial; }
+      .header-actions ha-icon-button { color: var(--jc-dim); --mdc-icon-size: 16px; margin: -6px; }
 
       .hero {
-        display: flex; align-items: center; gap: 20px;
-        margin-bottom: 12px; padding: 16px;
+        display: flex; align-items: center; gap: 16px;
+        margin-bottom: 10px; padding: 12px;
         background: var(--jc-glass); border: 1px solid var(--jc-border); border-radius: 18px;
       }
       .glass-orb {
@@ -499,32 +496,62 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
       .session-dur { font-size: 0.8rem; color: var(--jc-dim); }
       
       .session-edit-group { display: flex; align-items: center; gap: 4px; flex: 1; }
-      .session-edit-group input { background: #0f172a; border: 1px solid var(--jc-border); color: white; border-radius: 8px; padding: 4px; font-size: 0.85rem; width: 75px; }
+      .session-edit-group input { background: #0f172a; border: 1px solid var(--jc-border); color: white; border-radius: 8px; padding: 4px; font-size: 1rem; width: 75px; }
+
+      .row-loc-sel { background: none; border: none; font-size: 1.1rem; cursor: pointer; padding: 0 4px; appearance: none; }
 
       .row-action { background: none; border: none; cursor: pointer; padding: 4px; border-radius: 6px; }
       .row-action.del { color: var(--jc-danger); }
       .row-action.add { color: var(--jc-success); }
-      .btn-add-line { width: 100%; border: 1px dashed var(--jc-border); background: none; color: var(--jc-dim); padding: 10px; border-radius: 12px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; }
+      .btn-add-line { width: 100%; border: 1px dashed var(--jc-border); background: none; color: var(--jc-dim); padding: 8px; border-radius: 12px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; }
       .btn-add-line:hover { color: white; border-color: var(--jc-primary); }
 
-      .add-row select { background: #0f172a; color: white; border: 1px solid var(--jc-border); border-radius: 8px; padding: 4px; font-size: 0.8rem; }
+      .add-row select { background: #0f172a; color: white; border: 1px solid var(--jc-border); border-radius: 8px; padding: 4px; font-size: 1rem; }
 
       .day-summary { border-top: 1px solid var(--jc-border); margin-top: 15px; padding-top: 15px; }
-      .sum-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 0.9rem; }
-      .sum-val { font-weight: 800; }
+      .sum-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 0.95rem; }
+      .sum-val { font-weight: 800; font-size: 1rem; }
       .type-badge { padding: 2px 10px; border-radius: 8px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; }
       .type-badge.work { background: rgba(99, 102, 241, 0.2); color: #a5b4fc; }
       .type-badge.vacation { background: rgba(16, 185, 129, 0.2); color: var(--jc-success); }
       .type-badge.sick { background: rgba(239, 68, 68, 0.2); color: var(--jc-danger); }
 
-      .type-sel { background: #0f172a; color: white; border: 1px solid var(--jc-border); border-radius: 8px; padding: 4px 8px; }
+      .type-sel { background: #0f172a; color: white; border: 1px solid var(--jc-border); border-radius: 8px; padding: 6px 10px; font-size: 0.9rem; font-weight: 700; width: 120px; }
 
       .modal-footer { margin-top: 20px; display: flex; gap: 12px; }
-      .btn-full { width: 100%; background: var(--jc-glass); border: 1px solid var(--jc-border); color: white; padding: 12px; border-radius: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
-      .btn-full:hover { background: rgba(255,255,255,0.08); }
-      .btn { flex: 1; padding: 12px; border-radius: 14px; border: none; font-weight: 700; cursor: pointer; }
+      .btn { flex: 1; padding: 14px; border-radius: 14px; border: none; font-weight: 700; cursor: pointer; font-size: 1rem; }
       .btn.primary { background: var(--jc-primary); color: white; }
       .btn.secondary { background: none; border: 1px solid var(--jc-border); color: var(--jc-dim); }
+
+      /* Mobile */
+      @media (max-width: 500px) {
+        ha-card { padding: 8px; }
+        .card-header { margin-bottom: 2px; }
+        .brand { font-size: 0.9rem; }
+        .hero { gap: 12px; padding: 10px; margin-bottom: 8px; }
+        .glass-orb { width: 95px; height: 95px; }
+        .timer { font-size: 1.4rem; }
+        .action-btn { height: 35px; font-size: 0.85rem; }
+        
+        .stats-row { gap: 6px; margin-bottom: 8px; }
+        .stat { padding: 6px 2px; }
+        .sv { font-size: 1.25rem; } /* LARGE STATS */
+        .sl { font-size: 0.55rem; }
+
+        .calendar { padding: 6px; border-radius: 14px; }
+        .cal-grid { gap: 3px; }
+        .cal-cell { border-radius: 8px; }
+        .dn { font-size: 1.2rem; } /* LARGE CAL NUMBERS */
+        .dt { font-size: 0.75rem; }
+        
+        /* Unified Mobile Editor */
+        .modal-content { padding: 16px; width: 96%; }
+        .modal-title { font-size: 1.1rem; }
+        .session-row { padding: 10px 8px; gap: 6px; }
+        .session-edit-group input { width: 85px; height: 38px; font-size: 1.1rem; }
+        .row-loc-sel { font-size: 1.3rem; }
+        .btn { padding: 16px; font-size: 1.05rem; }
+      }
     `;
   }
 }
