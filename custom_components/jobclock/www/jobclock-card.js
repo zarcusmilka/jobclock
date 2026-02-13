@@ -268,7 +268,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
           <div class="cal-nav">
             <button class="nav-btn" @click=${() => this.changeMonth(-1)}><ha-icon icon="mdi:chevron-left"></ha-icon></button>
             <span class="cal-title">${monthName}</span>
-            <button class="nav-btn" @click=${() => this.changeMonth(dir = 1)}><ha-icon icon="mdi:chevron-right"></ha-icon></button>
+            <button class="nav-btn" @click=${() => this.changeMonth(1)}><ha-icon icon="mdi:chevron-right"></ha-icon></button>
           </div>
           <div class="cal-grid">
             ${["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].map(d => html`<div class="cal-hdr">${d}</div>`)}
