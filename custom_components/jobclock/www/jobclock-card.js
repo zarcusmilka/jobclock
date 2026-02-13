@@ -27,7 +27,7 @@ const fmtDur = (seconds) => {
 
 class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement : HTMLElement) {
   static get properties() {
-    console.info("%c JobClock Card v1.4.1 Loaded ", "color: white; background: #6366f1; font-weight: bold;");
+    console.info("%c JobClock Card v1.4.2 Loaded ", "color: white; background: #6366f1; font-weight: bold;");
     return {
       hass: {},
       config: {},
@@ -60,7 +60,14 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
 
   updated(changedProps) {
     if (changedProps.has("hass") && this.hass && this.config?.entity) {
-      this.fetchData();
+      const oldHass = changedProps.get("hass");
+      const stateObj = this.hass.states[this.config.entity];
+      const oldStateObj = oldHass ? oldHass.states[this.config.entity] : null;
+
+      // Only fetch if entry_id changed (profile switch) or month changed
+      if (stateObj?.attributes.entry_id !== oldStateObj?.attributes.entry_id) {
+        this.fetchData();
+      }
     }
   }
 
@@ -425,10 +432,10 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
       }
       ha-card.is-working { border-color: var(--jc-success); box-shadow: 0 0 25px rgba(16, 185, 129, 0.15), 0 20px 40px -12px rgba(0,0,0,0.5); }
 
-      .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-      .brand { display: flex; align-items: center; gap: 8px; font-size: 1.1rem; font-weight: 800; background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-      .brand ha-icon { --mdc-icon-size: 22px; color: #818cf8; -webkit-text-fill-color: initial; }
-      .header-actions ha-icon-button { color: var(--jc-dim); --mdc-icon-size: 18px; }
+      .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+      .brand { display: flex; align-items: center; gap: 8px; font-size: 1rem; font-weight: 800; background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+      .brand ha-icon { --mdc-icon-size: 20px; color: #818cf8; -webkit-text-fill-color: initial; }
+      .header-actions ha-icon-button { color: var(--jc-dim); --mdc-icon-size: 16px; }
 
       .hero {
         display: flex; align-items: center; gap: 20px;
@@ -525,6 +532,33 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
       .btn { flex: 1; padding: 12px; border-radius: 14px; border: none; font-weight: 700; cursor: pointer; }
       .btn.primary { background: var(--jc-primary); color: white; }
       .btn.secondary { background: none; border: 1px solid var(--jc-border); color: var(--jc-dim); }
+
+      /* Mobile */
+      @media (max-width: 500px) {
+        ha-card { padding: 10px; }
+        .card-header { margin-bottom: 6px; }
+        .hero { gap: 12px; padding: 12px; margin-bottom: 10px; }
+        .glass-orb { width: 100px; height: 100px; }
+        .timer { font-size: 1.4rem; }
+        .action-btn { height: 34px; font-size: 0.8rem; }
+        
+        .stats-row { gap: 6px; margin-bottom: 10px; }
+        .stat { padding: 8px 2px; }
+        .sv { font-size: 1.2rem; } /* Larger Stats */
+        .sl { font-size: 0.5rem; }
+
+        .calendar { padding: 8px; border-radius: 14px; }
+        .cal-grid { gap: 3px; }
+        .cal-cell { border-radius: 8px; }
+        .dn { font-size: 1.1rem; } /* Larger Numbers */
+        .dt { font-size: 0.7rem; } /* Larger Indicators */
+        
+        /* Touch Friendly Editor */
+        .modal-content { padding: 20px; width: 95%; }
+        .session-row { padding: 12px; gap: 8px; }
+        .session-edit-group input { width: 85px; height: 35px; font-size: 1rem; }
+        .btn, .btn-full { padding: 14px; font-size: 0.9rem; }
+      }
     `;
   }
 }
