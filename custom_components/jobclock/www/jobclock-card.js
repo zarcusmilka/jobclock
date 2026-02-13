@@ -24,7 +24,7 @@ function fmtDur(seconds) {
 
 class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement : HTMLElement) {
   static get properties() {
-    console.info("%c JobClock Card v1.3.8 Loaded ", "color: white; background: #6366f1; font-weight: bold;");
+    console.info("%c JobClock Card v1.3.9 Loaded ", "color: white; background: #6366f1; font-weight: bold;");
     return {
       hass: {},
       config: {},
@@ -335,6 +335,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
                 ${sessions.map((s, i) => html`
                   <div class="session-row">
                     <span class="session-num">#${i + 1}</span>
+                    <span class="session-loc ${s.location || 'office'}">${(s.location === 'home') ? '🏠' : '🏢'}</span>
                     <span class="session-time">${fmtTime(s.start)} — ${fmtTime(s.end)}</span>
                     <span class="session-dur">${fmtDur(s.duration)}</span>
                   </div>
@@ -509,6 +510,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
         background: rgba(255,255,255,0.03); border: 1px solid var(--jc-border);
       }
       .session-num { font-size: 0.65rem; color: var(--jc-primary); font-weight: 700; min-width: 20px; }
+      .session-loc { font-size: 0.85rem; min-width: 20px; }
       .session-time { flex: 1; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
       .session-dur { font-size: 0.8rem; color: var(--jc-dim); font-weight: 600; }
       .no-sessions { font-size: 0.8rem; color: var(--jc-dim); text-align: center; padding: 12px; }

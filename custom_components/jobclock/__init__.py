@@ -91,7 +91,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 hass,
                 webcomponent_name="jobclock-panel",
                 frontend_url_path="jobclock",
-                module_url="/jobclock_static/jobclock-panel.js?v=1.3.8",
+                module_url="/jobclock_static/jobclock-panel.js?v=1.3.9",
                 sidebar_title="JobClock",
                 sidebar_icon="mdi:briefcase-clock",
                 require_admin=False,
@@ -482,6 +482,9 @@ class JobClockInstance:
     async def _set_active(self, start_time: datetime):
         self.is_working = True
         self.session_start = start_time
+        # Record location at session start (switch ON = Home Office, OFF = Office)
+        sw_state = self.hass.states.get(self.switch_entity)
+        self._session_location = "home" if (sw_state and sw_state.state == STATE_ON) else "office"
         self._notify_sensors()
         await self._async_save_data()
 
@@ -503,7 +506,8 @@ class JobClockInstance:
             session = {
                 "start": self.session_start.isoformat(),
                 "end": end_time.isoformat(),
-                "duration": duration
+                "duration": duration,
+                "location": getattr(self, "_session_location", "office")
             }
             if "sessions" not in self.history[today_str]:
                 self.history[today_str]["sessions"] = []
