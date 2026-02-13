@@ -27,7 +27,7 @@ const fmtDur = (seconds) => {
 
 class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement : HTMLElement) {
   static get properties() {
-    console.info("%c JobClock Card v1.4.1 Loaded ", "color: white; background: #6366f1; font-weight: bold;");
+    console.info("%c JobClock Card v1.4.4 Loaded ", "color: white; background: #6366f1; font-weight: bold;");
     return {
       hass: {},
       config: {},
@@ -88,7 +88,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
   }
 
   changeMonth(dir) {
-    const d = new Date(this._currentMonth);
+    const d = new Date(this._currentMonth.getFullYear(), this._currentMonth.getMonth(), 1);
     d.setMonth(d.getMonth() + dir);
     this._currentMonth = d;
     this.fetchData();
