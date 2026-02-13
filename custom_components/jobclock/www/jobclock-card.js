@@ -27,7 +27,7 @@ const fmtDur = (seconds) => {
 
 class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement : HTMLElement) {
   static get properties() {
-    console.info("%c JobClock Card v1.4.2 Loaded ", "color: white; background: #6366f1; font-weight: bold;");
+    console.info("%c JobClock Card v1.4.3 Loaded ", "color: white; background: #6366f1; font-weight: bold;");
     return {
       hass: {},
       config: {},
@@ -60,14 +60,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
 
   updated(changedProps) {
     if (changedProps.has("hass") && this.hass && this.config?.entity) {
-      const oldHass = changedProps.get("hass");
-      const stateObj = this.hass.states[this.config.entity];
-      const oldStateObj = oldHass ? oldHass.states[this.config.entity] : null;
-
-      // Only fetch if entry_id changed (profile switch) or month changed
-      if (stateObj?.attributes.entry_id !== oldStateObj?.attributes.entry_id) {
-        this.fetchData();
-      }
+      this.fetchData();
     }
   }
 
@@ -432,15 +425,17 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
       }
       ha-card.is-working { border-color: var(--jc-success); box-shadow: 0 0 25px rgba(16, 185, 129, 0.15), 0 20px 40px -12px rgba(0,0,0,0.5); }
 
-      .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-      .brand { display: flex; align-items: center; gap: 8px; font-size: 1rem; font-weight: 800; background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-      .brand ha-icon { --mdc-icon-size: 20px; color: #818cf8; -webkit-text-fill-color: initial; }
-      .header-actions ha-icon-button { color: var(--jc-dim); --mdc-icon-size: 16px; }
+      .card-header { position: absolute; top: 12px; right: 12px; left: 12px; display: flex; justify-content: space-between; align-items: center; z-index: 10; }
+      .brand { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; font-weight: 800; background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+      .brand ha-icon { --mdc-icon-size: 18px; color: #818cf8; -webkit-text-fill-color: initial; }
+      .header-actions { display: flex; gap: 4px; }
+      .header-actions ha-icon-button { color: var(--jc-dim); --mdc-icon-size: 16px; margin: -8px; }
 
       .hero {
         display: flex; align-items: center; gap: 20px;
-        margin-bottom: 12px; padding: 16px;
+        margin-bottom: 12px; padding: 24px 16px 16px; /* Space for absolute header */
         background: var(--jc-glass); border: 1px solid var(--jc-border); border-radius: 18px;
+        position: relative;
       }
       .glass-orb {
         width: 110px; height: 110px; border-radius: 50%;
@@ -535,27 +530,28 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
 
       /* Mobile */
       @media (max-width: 500px) {
-        ha-card { padding: 10px; }
-        .card-header { margin-bottom: 6px; }
-        .hero { gap: 12px; padding: 12px; margin-bottom: 10px; }
-        .glass-orb { width: 100px; height: 100px; }
-        .timer { font-size: 1.4rem; }
-        .action-btn { height: 34px; font-size: 0.8rem; }
+        ha-card { padding: 8px; }
+        .card-header { top: 8px; left: 8px; right: 8px; }
+        .hero { gap: 12px; padding: 20px 10px 10px; margin-bottom: 8px; }
+        .glass-orb { width: 90px; height: 90px; }
+        .timer { font-size: 1.3rem; }
+        .action-btn { height: 32px; font-size: 0.75rem; }
         
-        .stats-row { gap: 6px; margin-bottom: 10px; }
-        .stat { padding: 8px 2px; }
-        .sv { font-size: 1.2rem; } /* Larger Stats */
-        .sl { font-size: 0.5rem; }
+        .stats-row { gap: 4px; margin-bottom: 8px; }
+        .stat { padding: 6px 2px; border-radius: 10px; }
+        .sv { font-size: 1.1rem; }
+        .sl { font-size: 0.45rem; }
 
-        .calendar { padding: 8px; border-radius: 14px; }
-        .cal-grid { gap: 3px; }
-        .cal-cell { border-radius: 8px; }
-        .dn { font-size: 1.1rem; } /* Larger Numbers */
-        .dt { font-size: 0.7rem; } /* Larger Indicators */
+        .calendar { padding: 6px; border-radius: 12px; }
+        .cal-nav { margin-bottom: 6px; }
+        .cal-grid { gap: 2px; }
+        .cal-cell { border-radius: 6px; }
+        .dn { font-size: 1rem; }
+        .dt { font-size: 0.65rem; }
         
         /* Touch Friendly Editor */
-        .modal-content { padding: 20px; width: 95%; }
-        .session-row { padding: 12px; gap: 8px; }
+        .modal-content { padding: 16px; width: 98%; }
+        .session-row { padding: 10px; gap: 6px; }
         .session-edit-group input { width: 85px; height: 35px; font-size: 1rem; }
         .btn, .btn-full { padding: 14px; font-size: 0.9rem; }
       }

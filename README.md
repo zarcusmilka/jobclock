@@ -1,6 +1,6 @@
 # JobClock for Home Assistant
 
-[![GitHub Tag](https://img.shields.io/badge/version-1.4.2-blue.svg)](https://github.com/zarcusmilka/jobclock/tags)
+[![GitHub Tag](https://img.shields.io/badge/version-1.4.3-blue.svg)](https://github.com/zarcusmilka/jobclock/tags)
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 [![Maintainer](https://img.shields.io/badge/maintainer-ZarcusM-blue.svg)](https://github.com/zarcusmilka)
 
@@ -9,7 +9,7 @@ A smart work-time tracking integration for Home Assistant.
 
 
 > [!IMPORTANT]
-> **Mobile & Performance Update (v1.4.2)**: Optimized for touch devices with a compact header, larger stats, and a maximized calendar. Performance improvements for seamless profile switching.
+> **Radical Compactness Update (v1.4.3)**: Optimized for maximum vertical space on mobile. Fixed month/profile switching logic regressions. Header is now radically slimmed down.
 
 ## Features
 
