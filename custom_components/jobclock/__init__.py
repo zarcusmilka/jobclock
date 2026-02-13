@@ -9,7 +9,7 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform, STATE_ON, STATE_HOME, EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import HomeAssistant, CoreState, callback
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import entity_registry as er, config_validation as cv
 from homeassistant.helpers.event import async_track_state_change_event, async_track_point_in_time
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
@@ -61,6 +61,24 @@ WS_MANUAL_TOGGLE_SCHEMA = websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend({
     vol.Required("action"): str,  # 'start' or 'stop'
 })
 
+WS_UPDATE_SESSIONS_SCHEMA = websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend({
+    vol.Required("type"): "jobclock/update_sessions",
+    vol.Required("entry_id"): str,
+    vol.Required("date"): str,
+    vol.Required("sessions"): vol.All(
+        cv.ensure_list,
+        [
+            vol.Schema({
+                vol.Required("start"): str,
+                vol.Required("end"): str,
+                vol.Required("duration"): vol.Any(int, float),
+                vol.Optional("location"): str,
+            })
+        ],
+    ),
+    vol.Optional("status_type"): str,
+})
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up JobClock from a config entry."""
     hass.data.setdefault(DOMAIN, {})
@@ -70,6 +88,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         websocket_api.async_register_command(hass, ws_get_data)
         websocket_api.async_register_command(hass, ws_update_entry)
         websocket_api.async_register_command(hass, ws_manual_toggle)
+        websocket_api.async_register_command(hass, ws_update_sessions)
         hass.data[DOMAIN]["jobclock_api_registered"] = True
 
     # Register Panel & Static Path
@@ -91,7 +110,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 hass,
                 webcomponent_name="jobclock-panel",
                 frontend_url_path="jobclock",
-                module_url="/jobclock_static/jobclock-panel.js?v=1.4.0",
+                module_url="/jobclock_static/jobclock-panel.js?v=1.4.1",
                 sidebar_title="JobClock",
                 sidebar_icon="mdi:briefcase-clock",
                 require_admin=False,
@@ -202,6 +221,30 @@ async def ws_manual_toggle(hass, connection, msg):
 
 ws_manual_toggle._ws_schema = WS_MANUAL_TOGGLE_SCHEMA
 ws_manual_toggle._ws_command = "jobclock/manual_toggle"
+
+
+@websocket_api.async_response
+async def ws_update_sessions(hass, connection, msg):
+    """Handle update sessions command."""
+    entry_id = msg["entry_id"]
+    instance = hass.data[DOMAIN].get(entry_id)
+    if not instance:
+        connection.send_error(msg["id"], "instance_not_found", "Instance not found")
+        return
+
+    date_obj = dt_util.parse_date(msg["date"])
+    if not date_obj:
+        connection.send_error(msg["id"], "invalid_date", "Invalid date")
+        return
+
+    sessions = msg.get("sessions")
+    status_type = msg.get("status_type")
+    
+    await instance.update_history_sessions(date_obj, sessions=sessions, status_type=status_type)
+    connection.send_result(msg["id"], {"status": "ok"})
+
+ws_update_sessions._ws_schema = WS_UPDATE_SESSIONS_SCHEMA
+ws_update_sessions._ws_command = "jobclock/update_sessions"
 
 
 class JobClockInstance:
@@ -412,6 +455,24 @@ class JobClockInstance:
             self.history[d_str]["duration"] = float(duration)
             # If manual edit, we might want to clear sessions to avoid confusion
             # but for now let's keep them as "audit log"
+        if status_type is not None:
+            self.history[d_str]["type"] = status_type
+            
+        await self._async_save_data()
+        self._notify_sensors()
+
+    async def update_history_sessions(self, date_obj: datetime_date, sessions=None, status_type=None):
+        """Update sessions and recalculate duration."""
+        d_str = date_obj.isoformat()
+        if d_str not in self.history:
+            self.history[d_str] = {"duration": 0, "type": "work", "sessions": []}
+            
+        if sessions is not None:
+            self.history[d_str]["sessions"] = sessions
+            # Recalculate total duration
+            total_dur = sum(s.get("duration", 0) for s in sessions)
+            self.history[d_str]["duration"] = total_dur
+            
         if status_type is not None:
             self.history[d_str]["type"] = status_type
             
