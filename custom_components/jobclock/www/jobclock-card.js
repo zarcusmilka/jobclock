@@ -12,7 +12,7 @@ function formatDateLocal(date) {
 
 class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement : HTMLElement) {
   static get properties() {
-    console.info("%c JobClock Card v1.3.5 Loaded ", "color: white; background: #6366f1; font-weight: bold;");
+    console.info("%c JobClock Card v1.3.6 Loaded ", "color: white; background: #6366f1; font-weight: bold;");
     return {
       hass: {},
       config: {},
@@ -49,10 +49,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     if (super.disconnectedCallback) super.disconnectedCallback();
   }
 
-  setConfig(config) {
-    this.config = config;
-  }
-
+  setConfig(config) { this.config = config; }
   getCardSize() { return 10; }
 
   updated(changedProps) {
@@ -61,11 +58,10 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
       this._data = {};
       this.requestUpdate();
     }
-
     if (changedProps.has("config") || changedProps.has("hass")) {
       if (!this._entry_id && this.config?.entity && this.hass?.states[this.config.entity]) {
         const stateObj = this.hass.states[this.config.entity];
-        if (stateObj.attributes && stateObj.attributes.entry_id) {
+        if (stateObj.attributes?.entry_id) {
           this._entry_id = stateObj.attributes.entry_id;
           this.fetchData();
         }
@@ -76,36 +72,26 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
   async fetchData() {
     if (!this._entry_id || !this.hass) return;
     this._loading = true;
-
     const year = this._currentMonth.getFullYear();
     const month = this._currentMonth.getMonth();
     const startDate = formatDateLocal(new Date(year, month, 1));
     const endDate = formatDateLocal(new Date(year, month + 1, 0));
-
     try {
       const result = await this.hass.callWS({
-        type: "jobclock/get_data",
-        entry_id: this._entry_id,
-        start_date: startDate,
-        end_date: endDate
+        type: "jobclock/get_data", entry_id: this._entry_id,
+        start_date: startDate, end_date: endDate
       });
       const map = {};
-      if (Array.isArray(result)) {
-        result.forEach(d => map[d.date] = d);
-      }
+      if (Array.isArray(result)) result.forEach(d => map[d.date] = d);
       this._data = map;
-    } catch (e) {
-      console.error("JobClock Error", e);
-    } finally {
-      this._loading = false;
-      this.requestUpdate();
-    }
+    } catch (e) { console.error("JobClock Error", e); }
+    finally { this._loading = false; this.requestUpdate(); }
   }
 
   changeMonth(delta) {
-    const newDate = new Date(this._currentMonth);
-    newDate.setMonth(newDate.getMonth() + delta);
-    this._currentMonth = newDate;
+    const d = new Date(this._currentMonth);
+    d.setMonth(d.getMonth() + delta);
+    this._currentMonth = d;
     this.fetchData();
   }
 
@@ -116,19 +102,13 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     this._editorOpen = true;
   }
 
-  closeEditor() {
-    this._editorOpen = false;
-    this._editDate = null;
-  }
+  closeEditor() { this._editorOpen = false; this._editDate = null; }
 
   async saveEntry() {
     if (!this._editDate || !this._entry_id) return;
-    const duration = parseFloat(this._editDuration) * 3600;
     await this.hass.callWS({
-      type: "jobclock/update_entry",
-      entry_id: this._entry_id,
-      date: this._editDate,
-      duration: duration,
+      type: "jobclock/update_entry", entry_id: this._entry_id,
+      date: this._editDate, duration: parseFloat(this._editDuration) * 3600,
       status_type: this._editType
     });
     this.closeEditor();
@@ -137,24 +117,32 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
 
   exportToCSV() {
     const rows = [["Date", "Duration (sec)", "Duration (hours)", "Type", "Start", "End"]];
-    const sortedDates = Object.keys(this._data).sort();
-    sortedDates.forEach(date => {
+    Object.keys(this._data).sort().forEach(date => {
       const day = this._data[date];
-      if (day.sessions?.length > 0) {
-        day.sessions.forEach(s => rows.push([date, s.duration.toFixed(0), (s.duration / 3600).toFixed(2), day.type, s.start, s.end]));
-      } else if (day.duration > 0) {
-        rows.push([date, day.duration.toFixed(0), (day.duration / 3600).toFixed(2), day.type, "", ""]);
-      }
+      if (day.sessions?.length > 0) day.sessions.forEach(s => rows.push([date, s.duration.toFixed(0), (s.duration / 3600).toFixed(2), day.type, s.start, s.end]));
+      else if (day.duration > 0) rows.push([date, day.duration.toFixed(0), (day.duration / 3600).toFixed(2), day.type, "", ""]);
     });
-    const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
     const link = document.createElement("a");
-    link.href = encodeURI(csvContent);
+    link.href = encodeURI("data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n"));
     link.download = `jobclock_export_${formatDateLocal(new Date())}.csv`;
     link.click();
   }
 
+  _toggleWork() {
+    const stateObj = this.config?.entity ? this.hass.states[this.config.entity] : null;
+    const sw = stateObj?.attributes?.switch_entity;
+    if (sw) this.hass.callService("homeassistant", "toggle", { entity_id: sw });
+    else alert("Bitte konfiguriere einen Schalter in den Einstellungen.");
+  }
+
+  _showSettings() {
+    const event = new Event("hass-more-info", { bubbles: true, composed: true });
+    event.detail = { entityId: this.config.entity };
+    this.dispatchEvent(event);
+  }
+
   render() {
-    if (!this.hass) return html`<div>Loading Hass...</div>`;
+    if (!this.hass) return html`<div>Loading...</div>`;
     const stateObj = this.config?.entity ? this.hass.states[this.config.entity] : null;
     const friendlyName = stateObj?.attributes?.friendly_name || "JobClock";
     const switchEntity = stateObj?.attributes?.switch_entity;
@@ -164,8 +152,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     const monthName = this._currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
     const monthStr = formatDateLocal(this._currentMonth).slice(0, 7);
 
-    let totalSeconds = 0;
-    let totalTarget = 0;
+    let totalSeconds = 0, totalTarget = 0;
     Object.keys(this._data).forEach(k => {
       if (k.startsWith(monthStr)) {
         totalSeconds += this._data[k].duration || 0;
@@ -175,28 +162,28 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
 
     const sessionStart = stateObj?.attributes?.session_start;
     let timerDisplay = "00:00";
-    let subText = "Bereit zur Arbeit";
+    let subText = "Bereit";
 
     if (isWorking && sessionStart) {
-      const start = new Date(sessionStart).getTime();
-      const diff = Math.floor((Date.now() - start) / 1000);
+      const diff = Math.floor((Date.now() - new Date(sessionStart).getTime()) / 1000);
       const h = Math.floor(diff / 3600);
       const m = Math.floor((diff % 3600) / 60);
-      timerDisplay = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-      subText = "Aktive Sitzung";
+      const s = diff % 60;
+      timerDisplay = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+      subText = "Läuft...";
     } else {
-      const todayStr = formatDateLocal(new Date());
-      const todayData = this._data[todayStr];
-      if (todayData) {
+      const todayData = this._data[formatDateLocal(new Date())];
+      if (todayData?.duration) {
         const h = Math.floor(todayData.duration / 3600);
         const m = Math.floor((todayData.duration % 3600) / 60);
         timerDisplay = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-        subText = "Heute gearbeitet";
+        subText = "Heute";
       }
     }
 
     return html`
-      <ha-card>
+      <ha-card class="${isWorking ? 'is-working' : ''}">
+        <!-- Compact Header -->
         <div class="card-header">
           <div class="brand">
             <ha-icon icon="mdi:briefcase-clock"></ha-icon>
@@ -208,54 +195,46 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
           </div>
         </div>
 
+        <!-- Horizontal Hero: Timer left, Controls right -->
         <div class="hero">
-          <div class="glass-orb ${isWorking ? 'active' : ''}" @click=${this._toggleWork}>
+          <div class="glass-orb ${isWorking ? 'active' : ''}">
             <div class="orb-content">
               <span class="timer">${timerDisplay}</span>
-              <span class="status-label">${isWorking ? "IM DIENST" : "ABWESEND"}</span>
-              <span class="sub-label">${subText}</span>
+              <span class="status-badge ${isWorking ? 'working' : 'idle'}">${isWorking ? "● REC" : "PAUSE"}</span>
             </div>
           </div>
-          
-          <div class="hero-actions">
+
+          <div class="hero-controls">
             <button class="action-btn ${isWorking ? 'stop' : 'start'}" @click=${this._toggleWork}>
               <ha-icon icon="${isWorking ? 'mdi:stop' : 'mdi:play'}"></ha-icon>
               ${isWorking ? "Stop" : "Start"}
             </button>
             ${switchEntity ? html`
-              <button class="action-btn mode ${isHO ? 'ho' : ''}" @click=${() => this.hass.callService("homeassistant", "toggle", { entity_id: switchEntity })}>
-                <ha-icon icon="mdi:home-city"></ha-icon>
+              <button class="action-btn mode ${isHO ? 'ho-active' : ''}" @click=${() => this.hass.callService("homeassistant", "toggle", { entity_id: switchEntity })}>
+                <ha-icon icon="${isHO ? 'mdi:home' : 'mdi:office-building'}"></ha-icon>
                 ${isHO ? "Home" : "Office"}
               </button>
             ` : ''}
+            <span class="sub-label">${subText}</span>
           </div>
         </div>
 
-        <div class="stats-grid">
-          <div class="stat-item">
-            <span class="val">${(totalTarget / 3600).toFixed(1)}h</span>
-            <span class="lbl">Soll</span>
-          </div>
-          <div class="stat-item">
-            <span class="val">${(totalSeconds / 3600).toFixed(1)}h</span>
-            <span class="lbl">Ist</span>
-          </div>
-          <div class="stat-item">
-            <span class="val ${(totalSeconds - totalTarget) >= 0 ? 'pos' : 'neg'}">
-              ${(totalSeconds - totalTarget) >= 0 ? '+' : ''}${((totalSeconds - totalTarget) / 3600).toFixed(1)}h
-            </span>
-            <span class="lbl">Saldo</span>
-          </div>
+        <!-- Inline Stats Row -->
+        <div class="stats-row">
+          <div class="stat"><span class="sv">${(totalTarget / 3600).toFixed(1)}h</span><span class="sl">SOLL</span></div>
+          <div class="stat"><span class="sv">${(totalSeconds / 3600).toFixed(1)}h</span><span class="sl">IST</span></div>
+          <div class="stat"><span class="sv ${(totalSeconds - totalTarget) >= 0 ? 'pos' : 'neg'}">${(totalSeconds - totalTarget) >= 0 ? '+' : ''}${((totalSeconds - totalTarget) / 3600).toFixed(1)}h</span><span class="sl">SALDO</span></div>
         </div>
 
-        <div class="calendar-section">
-          <div class="cal-header">
+        <!-- Calendar -->
+        <div class="calendar">
+          <div class="cal-nav">
             <button class="nav-btn" @click=${() => this.changeMonth(-1)}><ha-icon icon="mdi:chevron-left"></ha-icon></button>
             <span class="cal-title">${monthName}</span>
             <button class="nav-btn" @click=${() => this.changeMonth(1)}><ha-icon icon="mdi:chevron-right"></ha-icon></button>
           </div>
           <div class="cal-grid">
-            ${["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].map(d => html`<div class="cal-day-name">${d}</div>`)}
+            ${["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].map(d => html`<div class="cal-hdr">${d}</div>`)}
             ${this.renderCalendarDays(this._currentMonth)}
           </div>
         </div>
@@ -266,50 +245,34 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
   }
 
   renderCalendarDays(date) {
-    const year = date.getFullYear();
-    const month = date.getMonth();
+    const year = date.getFullYear(), month = date.getMonth();
     const firstDay = new Date(year, month, 1).getDay();
-    const startOffset = firstDay === 0 ? 6 : firstDay - 1;
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const offset = firstDay === 0 ? 6 : firstDay - 1;
+    const total = new Date(year, month + 1, 0).getDate();
     const days = [];
-
-    for (let i = 0; i < startOffset; i++) days.push(html`<div class="cal-day empty"></div>`);
-
     const todayStr = formatDateLocal(new Date());
-    for (let i = 1; i <= daysInMonth; i++) {
-      const d = new Date(year, month, i);
-      const dStr = formatDateLocal(d);
-      const dayData = this._data[dStr];
-      let classes = "cal-day";
-      if (dStr === todayStr) classes += " today";
-      if (dayData?.type === 'vacation') classes += " vacation";
-      if (dayData?.type === 'sick') classes += " sick";
+
+    for (let i = 0; i < offset; i++) days.push(html`<div class="cal-cell empty"></div>`);
+
+    for (let i = 1; i <= total; i++) {
+      const dStr = formatDateLocal(new Date(year, month, i));
+      const dd = this._data[dStr];
+      let cls = "cal-cell";
+      if (dStr === todayStr) cls += " today";
+      if (dd?.type === 'vacation') cls += " vacation";
+      if (dd?.type === 'sick') cls += " sick";
+      if (dd?.duration > 0) cls += " has-data";
 
       days.push(html`
-          <div class="${classes}" @click=${() => this.openEditor(dStr, dayData)}>
-            <span class="day-num">${i}</span>
-            ${dayData?.duration > 0 || dayData?.type !== 'work' ? html`
-              <span class="day-time">
-                ${dayData?.type === 'vacation' ? '🏝️' : dayData?.type === 'sick' ? '🤒' : (dayData?.duration / 3600).toFixed(1) + 'h'}
-              </span>
-            ` : ""}
-          </div>
-        `);
+        <div class="${cls}" @click=${() => this.openEditor(dStr, dd)}>
+          <span class="dn">${i}</span>
+          ${dd?.duration > 0 || (dd?.type && dd?.type !== 'work') ? html`
+            <span class="dt">${dd?.type === 'vacation' ? '🏝️' : dd?.type === 'sick' ? '🤒' : (dd?.duration / 3600).toFixed(1) + 'h'}</span>
+          ` : ""}
+        </div>
+      `);
     }
     return days;
-  }
-
-  _toggleWork() {
-    const stateObj = this.config?.entity ? this.hass.states[this.config.entity] : null;
-    const switchEntity = stateObj?.attributes?.switch_entity;
-    if (switchEntity) this.hass.callService("homeassistant", "toggle", { entity_id: switchEntity });
-    else alert("Bitte konfiguriere einen Schalter in den Einstellungen.");
-  }
-
-  _showSettings() {
-    const event = new Event("hass-more-info", { bubbles: true, composed: true });
-    event.detail = { entityId: this.config.entity };
-    this.dispatchEvent(event);
   }
 
   _renderEditor() {
@@ -347,87 +310,174 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
         --jc-bg: #0f172a;
         --jc-card: rgba(30, 41, 59, 0.7);
         --jc-glass: rgba(255, 255, 255, 0.03);
-        --jc-glass-border: rgba(255, 255, 255, 0.1);
+        --jc-border: rgba(255, 255, 255, 0.1);
         --jc-text: #f8fafc;
-        --jc-text-dim: #94a3b8;
+        --jc-dim: #94a3b8;
       }
 
       ha-card {
         background: var(--jc-bg);
         background-image: radial-gradient(circle at 50% -20%, #312e81 0%, transparent 60%);
         color: var(--jc-text);
-        border-radius: 24px;
-        padding: 24px;
+        border-radius: 20px;
+        padding: 16px;
         font-family: 'Inter', -apple-system, sans-serif;
-        border: 1px solid var(--jc-glass-border);
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        border: 1px solid var(--jc-border);
+        box-shadow: 0 20px 40px -12px rgba(0,0,0,0.5);
         overflow: hidden;
+        transition: border-color 0.4s ease;
       }
 
-      .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-      .brand { display: flex; align-items: center; gap: 12px; font-size: 1.15rem; font-weight: 700; background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-      .brand ha-icon { --mdc-icon-size: 24px; color: #818cf8; -webkit-text-fill-color: initial; }
-      .header-actions ha-icon-button { color: var(--jc-text-dim); }
+      /* Visual feedback: glowing border when working */
+      ha-card.is-working {
+        border-color: var(--jc-success);
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.15), 0 20px 40px -12px rgba(0,0,0,0.5);
+      }
 
-      .hero { display: flex; flex-direction: column; align-items: center; gap: 24px; margin-bottom: 32px; }
-      .glass-orb { width: 180px; height: 180px; border-radius: 50%; background: var(--jc-glass); border: 1px solid var(--jc-glass-border); backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; transition: transform 0.3s; }
-      .glass-orb.active { border-color: var(--jc-primary); animation: pulse 2s infinite; }
-      
-      @keyframes pulse {
-        0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
-        70% { box-shadow: 0 0 0 15px rgba(99, 102, 241, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+      /* Header */
+      .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+      .brand { display: flex; align-items: center; gap: 8px; font-size: 1.1rem; font-weight: 700; background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+      .brand ha-icon { --mdc-icon-size: 22px; color: #818cf8; -webkit-text-fill-color: initial; }
+      .header-actions ha-icon-button { color: var(--jc-dim); }
+
+      /* Hero: horizontal layout */
+      .hero {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        margin-bottom: 12px;
+        padding: 12px;
+        background: var(--jc-glass);
+        border: 1px solid var(--jc-border);
+        border-radius: 16px;
+      }
+
+      .glass-orb {
+        width: 100px; height: 100px;
+        border-radius: 50%;
+        background: rgba(99, 102, 241, 0.08);
+        border: 2px solid var(--jc-border);
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+        transition: all 0.4s ease;
+      }
+      .glass-orb.active {
+        border-color: var(--jc-success);
+        background: rgba(16, 185, 129, 0.1);
+        animation: pulse-green 2s infinite;
+      }
+
+      @keyframes pulse-green {
+        0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+        70% { box-shadow: 0 0 0 12px rgba(16, 185, 129, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
       }
 
       .orb-content { display: flex; flex-direction: column; align-items: center; }
-      .timer { font-size: 2.5rem; font-weight: 800; }
-      .status-label { font-size: 0.7rem; color: var(--jc-primary); font-weight: 700; letter-spacing: 2px; }
-      .sub-label { font-size: 0.8rem; color: var(--jc-text-dim); }
+      .timer { font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.5px; }
+      .status-badge {
+        font-size: 0.55rem; font-weight: 700; letter-spacing: 1.5px;
+        padding: 2px 8px; border-radius: 6px; margin-top: 2px;
+      }
+      .status-badge.working { background: rgba(16, 185, 129, 0.2); color: var(--jc-success); }
+      .status-badge.idle { background: rgba(148, 163, 184, 0.15); color: var(--jc-dim); }
 
-      .hero-actions { display: flex; gap: 12px; width: 100%; max-width: 280px; }
-      .action-btn { flex: 1; height: 44px; border-radius: 14px; border: 1px solid var(--jc-glass-border); background: var(--jc-glass); color: var(--jc-text); font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.9rem; }
-      .action-btn.start { background: var(--jc-success); border: none; }
-      .action-btn.stop { background: var(--jc-danger); border: none; }
-      .action-btn.ho { border-color: var(--jc-primary); color: var(--jc-primary); }
+      .hero-controls {
+        display: flex; flex-direction: column; gap: 8px; flex: 1;
+      }
+      .action-btn {
+        height: 40px; border-radius: 12px;
+        border: 1px solid var(--jc-border);
+        background: var(--jc-glass); color: var(--jc-text);
+        font-weight: 600; font-size: 0.85rem;
+        cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+        transition: all 0.2s ease;
+      }
+      .action-btn.start { background: var(--jc-success); border: none; color: white; }
+      .action-btn.start:hover { background: #059669; transform: scale(1.02); }
+      .action-btn.stop { background: var(--jc-danger); border: none; color: white; animation: btn-pulse 1.5s infinite; }
+      .action-btn.stop:hover { background: #dc2626; }
+      .action-btn.mode { background: rgba(99,102,241,0.1); border-color: rgba(99,102,241,0.3); }
+      .action-btn.ho-active { background: rgba(99,102,241,0.2); border-color: var(--jc-primary); color: #a5b4fc; }
+      .sub-label { font-size: 0.7rem; color: var(--jc-dim); text-align: center; }
 
-      .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 24px; }
-      .stat-item { background: var(--jc-glass); padding: 12px; border-radius: 16px; border: 1px solid var(--jc-glass-border); display: flex; flex-direction: column; align-items: center; }
-      .stat-item .val { font-size: 1.1rem; font-weight: 700; }
-      .stat-item .lbl { font-size: 0.65rem; color: var(--jc-text-dim); text-transform: uppercase; }
-      .stat-item .pos { color: var(--jc-success); }
-      .stat-item .neg { color: var(--jc-danger); }
+      @keyframes btn-pulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+        50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+      }
 
-      .calendar-section { background: var(--jc-card); border-radius: 16px; padding: 16px; border: 1px solid var(--jc-glass-border); }
-      .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-      .cal-title { font-size: 1rem; font-weight: 700; }
-      .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-      .cal-day-name { text-align: center; font-size: 0.7rem; color: var(--jc-text-dim); }
-      .cal-day { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 8px; background: rgba(255,255,255,0.02); cursor: pointer; font-size: 0.8rem; }
-      .cal-day:hover { background: rgba(255,255,255,0.08); }
-      .cal-day.today { border: 1px solid var(--jc-primary); background: rgba(99, 102, 241, 0.1); }
-      .cal-day.vacation { color: var(--jc-success); }
-      .cal-day.sick { color: var(--jc-danger); }
-      .day-time { font-size: 0.6rem; color: var(--jc-text-dim); }
+      /* Stats Row */
+      .stats-row {
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+        margin-bottom: 12px;
+      }
+      .stat {
+        background: var(--jc-glass); padding: 8px 4px;
+        border-radius: 12px; border: 1px solid var(--jc-border);
+        display: flex; flex-direction: column; align-items: center;
+      }
+      .sv { font-size: 1rem; font-weight: 700; }
+      .sl { font-size: 0.6rem; color: var(--jc-dim); text-transform: uppercase; letter-spacing: 1px; }
+      .pos { color: var(--jc-success); }
+      .neg { color: var(--jc-danger); }
 
+      /* Calendar */
+      .calendar {
+        background: var(--jc-card); border-radius: 14px;
+        padding: 12px; border: 1px solid var(--jc-border);
+      }
+      .cal-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+      .cal-title { font-size: 0.95rem; font-weight: 700; }
+      .nav-btn { background: none; border: none; color: var(--jc-text); cursor: pointer; padding: 4px; border-radius: 8px; }
+      .nav-btn:hover { background: rgba(255,255,255,0.05); }
+      .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+      .cal-hdr { text-align: center; font-size: 0.7rem; color: var(--jc-dim); font-weight: 600; padding: 4px 0; }
+
+      .cal-cell {
+        aspect-ratio: 1;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        border-radius: 8px;
+        background: rgba(255,255,255,0.015);
+        cursor: pointer;
+        font-size: 0.85rem;
+        transition: background 0.15s;
+        position: relative;
+      }
+      .cal-cell:hover { background: rgba(255,255,255,0.08); }
+      .cal-cell.today {
+        border: 2px solid var(--jc-primary);
+        background: rgba(99, 102, 241, 0.12);
+        font-weight: 700;
+      }
+      .cal-cell.has-data { background: rgba(99, 102, 241, 0.06); }
+      .cal-cell.vacation { background: rgba(16, 185, 129, 0.1); }
+      .cal-cell.sick { background: rgba(239, 68, 68, 0.1); }
+      .dn { font-weight: 500; }
+      .dt { font-size: 0.55rem; color: var(--jc-dim); line-height: 1; }
+
+      /* Modal */
       .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 1000; }
       .modal-content { background: #1e293b; padding: 24px; border-radius: 20px; width: 90%; max-width: 400px; }
-      .input-field { margin-bottom: 20px; }
-      .input-field input, .input-field select { width: 100%; height: 44px; background: #0f172a; border: 1px solid var(--jc-glass-border); border-radius: 12px; color: white; padding: 0 12px; }
+      .modal-content h3 { margin-top: 0; }
+      .input-field { margin-bottom: 16px; }
+      .input-field label { display: block; margin-bottom: 4px; font-size: 0.8rem; color: var(--jc-dim); }
+      .input-field input, .input-field select { width: 100%; height: 44px; background: #0f172a; border: 1px solid var(--jc-border); border-radius: 12px; color: white; padding: 0 12px; box-sizing: border-box; }
       .modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
       .btn { padding: 10px 20px; border-radius: 12px; border: none; font-weight: 600; cursor: pointer; }
       .btn.primary { background: var(--jc-primary); color: white; }
+      .btn.secondary { background: transparent; color: var(--jc-dim); border: 1px solid var(--jc-border); }
 
+      /* Mobile tweaks */
       @media (max-width: 450px) {
-          ha-card { padding: 16px; }
-          .hero { gap: 16px; margin-bottom: 24px; }
-          .glass-orb { width: 140px; height: 140px; }
-          .timer { font-size: 2rem; }
-          .stats-grid { gap: 8px; margin-bottom: 16px; }
-          .stat-item { padding: 8px; }
-          .stat-item .val { font-size: 0.95rem; }
-          .calendar-section { padding: 12px; }
-          .cal-grid { gap: 2px; }
-          .cal-day { font-size: 0.75rem; }
+        ha-card { padding: 12px; }
+        .hero { gap: 14px; padding: 10px; }
+        .glass-orb { width: 85px; height: 85px; }
+        .timer { font-size: 1.2rem; }
+        .stats-row { gap: 6px; margin-bottom: 10px; }
+        .stat { padding: 6px 2px; }
+        .sv { font-size: 0.9rem; }
+        .calendar { padding: 10px; }
+        .cal-cell { font-size: 0.8rem; }
       }
     `;
   }
