@@ -1,6 +1,6 @@
 # JobClock for Home Assistant
 
-[![GitHub Tag](https://img.shields.io/badge/version-1.3.9-blue.svg)](https://github.com/zarcusmilka/jobclock/tags)
+[![GitHub Tag](https://img.shields.io/badge/version-1.4.0-blue.svg)](https://github.com/zarcusmilka/jobclock/tags)
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 [![Maintainer](https://img.shields.io/badge/maintainer-ZarcusM-blue.svg)](https://github.com/zarcusmilka)
 
@@ -9,7 +9,7 @@ A smart work-time tracking integration for Home Assistant.
 
 
 > [!IMPORTANT]
-> **New UI Redesign (v1.3.9)**: JobClock now features a modern, premium Glassmorphism-inspired dashboard with instant start/stop, session details with location tracking, and color-coded calendar!
+> **Stable Release (v1.4.0)**: JobClock now features a fully polished dashboard with instant start/stop, session history with location tracking, and smart calendar coloring!
 
 ## Features
 
