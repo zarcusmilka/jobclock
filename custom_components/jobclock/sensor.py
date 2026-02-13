@@ -46,8 +46,12 @@ class JobClockTimeSensor(SensorEntity):
     @property
     def extra_state_attributes(self):
         """Return the state attributes."""
-        return {
+        attrs = {
             "entry_id": self._entry.entry_id,
             "switch_entity": self._instance.switch_entity,
             "zone_entity": self._instance.zone_entity,
+            "is_working": self._instance.is_working,
         }
+        if self._instance.session_start:
+            attrs["session_start"] = self._instance.session_start.isoformat()
+        return attrs

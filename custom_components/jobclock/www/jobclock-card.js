@@ -12,7 +12,7 @@ function formatDateLocal(date) {
 
 class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement : HTMLElement) {
   static get properties() {
-    console.info("%c JobClock Card v1.3.6 Loaded ", "color: white; background: #6366f1; font-weight: bold;");
+    console.info("%c JobClock Card v1.3.7 Loaded ", "color: white; background: #6366f1; font-weight: bold;");
     return {
       hass: {},
       config: {},
@@ -38,7 +38,8 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
   connectedCallback() {
     if (super.connectedCallback) super.connectedCallback();
     this._timer = setInterval(() => {
-      if (this.config?.entity && this.hass?.states[this.config.entity]?.state === 'working') {
+      const stateObj = this.config?.entity ? this.hass?.states[this.config.entity] : null;
+      if (stateObj?.attributes?.is_working) {
         this.requestUpdate();
       }
     }, 1000);
@@ -74,12 +75,11 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     this._loading = true;
     const year = this._currentMonth.getFullYear();
     const month = this._currentMonth.getMonth();
-    const startDate = formatDateLocal(new Date(year, month, 1));
-    const endDate = formatDateLocal(new Date(year, month + 1, 0));
     try {
       const result = await this.hass.callWS({
         type: "jobclock/get_data", entry_id: this._entry_id,
-        start_date: startDate, end_date: endDate
+        start_date: formatDateLocal(new Date(year, month, 1)),
+        end_date: formatDateLocal(new Date(year, month + 1, 0))
       });
       const map = {};
       if (Array.isArray(result)) result.forEach(d => map[d.date] = d);
@@ -101,7 +101,6 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     this._editType = currentData ? currentData.type : "work";
     this._editorOpen = true;
   }
-
   closeEditor() { this._editorOpen = false; this._editDate = null; }
 
   async saveEntry() {
@@ -131,8 +130,11 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
   _toggleWork() {
     const stateObj = this.config?.entity ? this.hass.states[this.config.entity] : null;
     const sw = stateObj?.attributes?.switch_entity;
-    if (sw) this.hass.callService("homeassistant", "toggle", { entity_id: sw });
-    else alert("Bitte konfiguriere einen Schalter in den Einstellungen.");
+    if (sw) {
+      this.hass.callService("homeassistant", "toggle", { entity_id: sw });
+    } else {
+      alert("Kein Schalter konfiguriert.");
+    }
   }
 
   _showSettings() {
@@ -146,7 +148,12 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     const stateObj = this.config?.entity ? this.hass.states[this.config.entity] : null;
     const friendlyName = stateObj?.attributes?.friendly_name || "JobClock";
     const switchEntity = stateObj?.attributes?.switch_entity;
-    const isWorking = stateObj?.state === "working";
+
+    // Use the is_working attribute from the sensor (exposed from backend)
+    const isWorking = stateObj?.attributes?.is_working === true;
+    const sessionStart = stateObj?.attributes?.session_start;
+
+    // Office/Home: check the switch entity state
     const isHO = switchEntity ? this.hass.states[switchEntity]?.state === 'on' : false;
 
     const monthName = this._currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
@@ -160,7 +167,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
       }
     });
 
-    const sessionStart = stateObj?.attributes?.session_start;
+    // Timer display
     let timerDisplay = "00:00";
     let subText = "Bereit";
 
@@ -183,7 +190,6 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
 
     return html`
       <ha-card class="${isWorking ? 'is-working' : ''}">
-        <!-- Compact Header -->
         <div class="card-header">
           <div class="brand">
             <ha-icon icon="mdi:briefcase-clock"></ha-icon>
@@ -195,12 +201,12 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
           </div>
         </div>
 
-        <!-- Horizontal Hero: Timer left, Controls right -->
-        <div class="hero">
+        <!-- Horizontal Hero: Orb left, Controls right -->
+        <div class="hero ${isWorking ? 'working' : ''}">
           <div class="glass-orb ${isWorking ? 'active' : ''}">
             <div class="orb-content">
               <span class="timer">${timerDisplay}</span>
-              <span class="status-badge ${isWorking ? 'working' : 'idle'}">${isWorking ? "● REC" : "PAUSE"}</span>
+              <span class="status-badge ${isWorking ? 'on' : 'off'}">${isWorking ? "● REC" : "PAUSE"}</span>
             </div>
           </div>
 
@@ -219,7 +225,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
           </div>
         </div>
 
-        <!-- Inline Stats Row -->
+        <!-- Stats -->
         <div class="stats-row">
           <div class="stat"><span class="sv">${(totalTarget / 3600).toFixed(1)}h</span><span class="sl">SOLL</span></div>
           <div class="stat"><span class="sv">${(totalSeconds / 3600).toFixed(1)}h</span><span class="sl">IST</span></div>
@@ -322,138 +328,124 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
         border-radius: 20px;
         padding: 16px;
         font-family: 'Inter', -apple-system, sans-serif;
-        border: 1px solid var(--jc-border);
+        border: 2px solid var(--jc-border);
         box-shadow: 0 20px 40px -12px rgba(0,0,0,0.5);
         overflow: hidden;
-        transition: border-color 0.4s ease;
+        transition: border-color 0.5s ease, box-shadow 0.5s ease;
       }
-
-      /* Visual feedback: glowing border when working */
       ha-card.is-working {
         border-color: var(--jc-success);
-        box-shadow: 0 0 20px rgba(16, 185, 129, 0.15), 0 20px 40px -12px rgba(0,0,0,0.5);
+        box-shadow: 0 0 25px rgba(16, 185, 129, 0.2), 0 20px 40px -12px rgba(0,0,0,0.5);
       }
 
       /* Header */
-      .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-      .brand { display: flex; align-items: center; gap: 8px; font-size: 1.1rem; font-weight: 700; background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-      .brand ha-icon { --mdc-icon-size: 22px; color: #818cf8; -webkit-text-fill-color: initial; }
-      .header-actions ha-icon-button { color: var(--jc-dim); }
+      .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+      .brand { display: flex; align-items: center; gap: 8px; font-size: 1.05rem; font-weight: 700; background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+      .brand ha-icon { --mdc-icon-size: 20px; color: #818cf8; -webkit-text-fill-color: initial; }
+      .header-actions ha-icon-button { color: var(--jc-dim); --mdc-icon-size: 18px; }
 
-      /* Hero: horizontal layout */
+      /* Hero */
       .hero {
         display: flex;
         align-items: center;
-        gap: 20px;
-        margin-bottom: 12px;
-        padding: 12px;
+        gap: 16px;
+        margin-bottom: 10px;
+        padding: 14px;
         background: var(--jc-glass);
         border: 1px solid var(--jc-border);
         border-radius: 16px;
+        transition: border-color 0.5s ease, background 0.5s ease;
+      }
+      .hero.working {
+        border-color: rgba(16, 185, 129, 0.3);
+        background: rgba(16, 185, 129, 0.04);
       }
 
       .glass-orb {
-        width: 100px; height: 100px;
+        width: 120px; height: 120px;
         border-radius: 50%;
         background: rgba(99, 102, 241, 0.08);
         border: 2px solid var(--jc-border);
         display: flex; align-items: center; justify-content: center;
         flex-shrink: 0;
-        transition: all 0.4s ease;
+        transition: all 0.5s ease;
       }
       .glass-orb.active {
         border-color: var(--jc-success);
         background: rgba(16, 185, 129, 0.1);
         animation: pulse-green 2s infinite;
       }
-
       @keyframes pulse-green {
-        0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
-        70% { box-shadow: 0 0 0 12px rgba(16, 185, 129, 0); }
+        0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.35); }
+        70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
         100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
       }
 
-      .orb-content { display: flex; flex-direction: column; align-items: center; }
-      .timer { font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.5px; }
+      .orb-content { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+      .timer { font-size: 1.5rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.5px; }
       .status-badge {
-        font-size: 0.55rem; font-weight: 700; letter-spacing: 1.5px;
-        padding: 2px 8px; border-radius: 6px; margin-top: 2px;
+        font-size: 0.5rem; font-weight: 700; letter-spacing: 1.5px;
+        padding: 2px 8px; border-radius: 6px;
       }
-      .status-badge.working { background: rgba(16, 185, 129, 0.2); color: var(--jc-success); }
-      .status-badge.idle { background: rgba(148, 163, 184, 0.15); color: var(--jc-dim); }
+      .status-badge.on { background: rgba(16, 185, 129, 0.2); color: var(--jc-success); animation: blink 1.2s ease-in-out infinite; }
+      .status-badge.off { background: rgba(148, 163, 184, 0.15); color: var(--jc-dim); }
+      @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.4; }
+      }
 
-      .hero-controls {
-        display: flex; flex-direction: column; gap: 8px; flex: 1;
-      }
+      .hero-controls { display: flex; flex-direction: column; gap: 6px; flex: 1; }
       .action-btn {
-        height: 40px; border-radius: 12px;
+        height: 34px; border-radius: 10px;
         border: 1px solid var(--jc-border);
         background: var(--jc-glass); color: var(--jc-text);
-        font-weight: 600; font-size: 0.85rem;
-        cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+        font-weight: 600; font-size: 0.8rem;
+        cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
         transition: all 0.2s ease;
       }
+      .action-btn ha-icon { --mdc-icon-size: 16px; }
       .action-btn.start { background: var(--jc-success); border: none; color: white; }
-      .action-btn.start:hover { background: #059669; transform: scale(1.02); }
+      .action-btn.start:active { transform: scale(0.96); }
       .action-btn.stop { background: var(--jc-danger); border: none; color: white; animation: btn-pulse 1.5s infinite; }
-      .action-btn.stop:hover { background: #dc2626; }
-      .action-btn.mode { background: rgba(99,102,241,0.1); border-color: rgba(99,102,241,0.3); }
-      .action-btn.ho-active { background: rgba(99,102,241,0.2); border-color: var(--jc-primary); color: #a5b4fc; }
-      .sub-label { font-size: 0.7rem; color: var(--jc-dim); text-align: center; }
-
+      .action-btn.stop:active { transform: scale(0.96); }
+      .action-btn.mode { background: rgba(99,102,241,0.08); border-color: rgba(99,102,241,0.2); font-size: 0.75rem; }
+      .action-btn.ho-active { background: rgba(99,102,241,0.15); border-color: var(--jc-primary); color: #a5b4fc; }
+      .sub-label { font-size: 0.65rem; color: var(--jc-dim); text-align: center; }
       @keyframes btn-pulse {
-        0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-        50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+        0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.35); }
+        50% { box-shadow: 0 0 0 5px rgba(239, 68, 68, 0); }
       }
 
-      /* Stats Row */
-      .stats-row {
-        display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
-        margin-bottom: 12px;
-      }
-      .stat {
-        background: var(--jc-glass); padding: 8px 4px;
-        border-radius: 12px; border: 1px solid var(--jc-border);
-        display: flex; flex-direction: column; align-items: center;
-      }
-      .sv { font-size: 1rem; font-weight: 700; }
-      .sl { font-size: 0.6rem; color: var(--jc-dim); text-transform: uppercase; letter-spacing: 1px; }
+      /* Stats */
+      .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
+      .stat { background: var(--jc-glass); padding: 8px 4px; border-radius: 12px; border: 1px solid var(--jc-border); display: flex; flex-direction: column; align-items: center; }
+      .sv { font-size: 0.95rem; font-weight: 700; }
+      .sl { font-size: 0.55rem; color: var(--jc-dim); text-transform: uppercase; letter-spacing: 1px; }
       .pos { color: var(--jc-success); }
       .neg { color: var(--jc-danger); }
 
       /* Calendar */
-      .calendar {
-        background: var(--jc-card); border-radius: 14px;
-        padding: 12px; border: 1px solid var(--jc-border);
-      }
-      .cal-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-      .cal-title { font-size: 0.95rem; font-weight: 700; }
+      .calendar { background: var(--jc-card); border-radius: 14px; padding: 12px; border: 1px solid var(--jc-border); }
+      .cal-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+      .cal-title { font-size: 0.9rem; font-weight: 700; }
       .nav-btn { background: none; border: none; color: var(--jc-text); cursor: pointer; padding: 4px; border-radius: 8px; }
       .nav-btn:hover { background: rgba(255,255,255,0.05); }
       .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
       .cal-hdr { text-align: center; font-size: 0.7rem; color: var(--jc-dim); font-weight: 600; padding: 4px 0; }
-
       .cal-cell {
         aspect-ratio: 1;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
-        border-radius: 8px;
-        background: rgba(255,255,255,0.015);
-        cursor: pointer;
-        font-size: 0.85rem;
-        transition: background 0.15s;
-        position: relative;
+        border-radius: 8px; background: rgba(255,255,255,0.015);
+        cursor: pointer; font-size: 0.9rem;
+        transition: background 0.15s; position: relative;
       }
       .cal-cell:hover { background: rgba(255,255,255,0.08); }
-      .cal-cell.today {
-        border: 2px solid var(--jc-primary);
-        background: rgba(99, 102, 241, 0.12);
-        font-weight: 700;
-      }
+      .cal-cell.today { border: 2px solid var(--jc-primary); background: rgba(99, 102, 241, 0.12); font-weight: 700; }
       .cal-cell.has-data { background: rgba(99, 102, 241, 0.06); }
       .cal-cell.vacation { background: rgba(16, 185, 129, 0.1); }
       .cal-cell.sick { background: rgba(239, 68, 68, 0.1); }
-      .dn { font-weight: 500; }
-      .dt { font-size: 0.55rem; color: var(--jc-dim); line-height: 1; }
+      .dn { font-weight: 500; line-height: 1.2; }
+      .dt { font-size: 0.6rem; color: var(--jc-dim); line-height: 1; }
 
       /* Modal */
       .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 1000; }
@@ -467,17 +459,19 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
       .btn.primary { background: var(--jc-primary); color: white; }
       .btn.secondary { background: transparent; color: var(--jc-dim); border: 1px solid var(--jc-border); }
 
-      /* Mobile tweaks */
-      @media (max-width: 450px) {
+      /* Mobile */
+      @media (max-width: 500px) {
         ha-card { padding: 12px; }
-        .hero { gap: 14px; padding: 10px; }
-        .glass-orb { width: 85px; height: 85px; }
-        .timer { font-size: 1.2rem; }
-        .stats-row { gap: 6px; margin-bottom: 10px; }
+        .hero { gap: 12px; padding: 10px; }
+        .glass-orb { width: 100px; height: 100px; }
+        .timer { font-size: 1.3rem; }
+        .action-btn { height: 32px; font-size: 0.75rem; }
+        .stats-row { gap: 4px; margin-bottom: 8px; }
         .stat { padding: 6px 2px; }
-        .sv { font-size: 0.9rem; }
+        .sv { font-size: 0.85rem; }
         .calendar { padding: 10px; }
-        .cal-cell { font-size: 0.8rem; }
+        .cal-cell { font-size: 0.85rem; }
+        .dt { font-size: 0.55rem; }
       }
     `;
   }
