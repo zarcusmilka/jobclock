@@ -58,3 +58,32 @@ This file contains the development history and task tracking for the JobClock in
 - **Typography & Spacing**: Refined Inter-based typography and generous whitespace for better readability.
 - **Hero Dashboard**: A centered, glowing timer that pulses when active (`active` session).
 - **Real-time Updates**: The timer now updates every second while working.
+## Release & Deployment Workflow
+
+To deploy a new version of JobClock, follow these steps:
+
+### 1. Update Version Numbers
+Update the version string (e.g., `v1.5.0`) in the following **3 files**:
+1.  `custom_components/jobclock/manifest.json` ("version": "x.x.x")
+2.  `custom_components/jobclock/__init__.py` (inside `module_url` param)
+3.  `custom_components/jobclock/www/jobclock-panel.js` (inside `import` statement)
+
+### 2. Git Commands (PowerShell 5.1 Compatible)
+Run these commands sequentially to commit, tag, and push:
+
+```powershell
+# 1. Stage and Commit
+git add .
+git commit -m "feat: description of changes"
+
+# 2. Push Code
+git push
+
+# 3. Create and Push Tag (Triggers Releases)
+git tag v1.5.0
+git push origin v1.5.0
+```
+
+### 3. Post-Deployment
+- **Restart Home Assistant** to load the new Python component.
+- **Clear Browser Cache** (or reload the app) on all devices to load the new JavaScript frontend.
