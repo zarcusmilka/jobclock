@@ -29,8 +29,17 @@ This file contains the development history and task tracking for the JobClock in
 - [x] v1.5.1: Auto-Save & Polish
     - [x] Frontend: Removed Save/Cancel buttons (Auto-Save on input)
     - [x] Docs: Updated version in README and manifests
+- [x] v1.5.2: UI Layout & Icons
+    - [x] Frontend: Side-by-side buttons (Start/Stop + Mode)
+    - [x] Frontend: Replaced emojis with professional icons (mdi)
+    - [x] Docs: Updated version and deployment instructions
 
 ## Feature Walkthrough History
+
+### v1.5.2 UI Layout & Icons
+- **Side-by-Side Controls**: The "Start/Stop" and "Office/Home" buttons are now arranged horizontally for a cleaner, modern look.
+- **Professional Icons**: Replaced all informal emojis with standard Material Design Icons (e.g., Beach icon for vacation, Medical icon for sick leave).
+- **Text Labels**: Dropdowns now use clear text labels instead of emojis.
 
 ### v1.5.1 Auto-Save & Polish
 - **Auto-Save**: The Day Detail popup now saves changes immediately. No more "Save" or "Cancel" buttons required.
