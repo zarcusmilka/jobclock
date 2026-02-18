@@ -27,7 +27,7 @@ const fmtDur = (seconds) => {
 
 class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement : HTMLElement) {
   static get properties() {
-    console.info("%c JobClock Card v1.5.0 Loaded ", "color: white; background: #6366f1; font-weight: bold;");
+    console.info("%c JobClock Card v1.5.2 Loaded ", "color: white; background: #6366f1; font-weight: bold;");
     return {
       hass: {},
       config: {},
@@ -315,7 +315,11 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
           <div class="${cls}" @click=${() => this.openDayDetail(dStr, dd)}>
             <span class="dn ${timeColor}">${i}</span>
             ${dd?.duration > 0 || (dd?.type && dd?.type !== 'work') ? html`
-              <span class="dt ${timeColor}">${dd?.type === 'vacation' ? '🏝️' : dd?.type === 'sick' ? '🤒' : (dd?.duration / 3600).toFixed(1) + 'h'}</span>
+              <span class="dt ${timeColor}">
+                ${dd?.type === 'vacation' ? html`<ha-icon icon="mdi:beach" style="--mdc-icon-size: 14px;"></ha-icon>` :
+            dd?.type === 'sick' ? html`<ha-icon icon="mdi:emoticon-sick" style="--mdc-icon-size: 14px;"></ha-icon>` :
+              (dd?.duration / 3600).toFixed(1) + 'h'}
+              </span>
             ` : ""}
           </div>
         `);
@@ -354,8 +358,8 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
                       <input type="time" .value=${new Date(s.end).toTimeString().slice(0, 5)} @change=${e => { s.end = `${this._detailDate}T${e.target.value}:00`; this.requestUpdate(); this._autoSave(); }}>
                   </div>
                   <select class="row-loc-sel" .value=${s.location || 'office'} @change=${e => { s.location = e.target.value; this.requestUpdate(); this._autoSave(); }}>
-                    <option value="office">🏢</option>
-                    <option value="home">🏠</option>
+                    <option value="office">Office</option>
+                    <option value="home">Home</option>
                   </select>
                   <button class="row-action del" @click=${() => this.deleteSession(i)}><ha-icon icon="mdi:trash-can-outline"></ha-icon></button>
                 </div>
@@ -367,7 +371,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
                     <input type="time" id="new-start" value="08:00">
                     <span>—</span>
                     <input type="time" id="new-end" value="16:00">
-                    <select id="new-loc"><option value="office">🏢</option><option value="home">🏠</option></select>
+                    <select id="new-loc"><option value="office">Office</option><option value="home">Home</option></select>
                     <button class="row-action add" @click=${() => this.addSession(this.shadowRoot.getElementById('new-start').value, this.shadowRoot.getElementById('new-end').value, this.shadowRoot.getElementById('new-loc').value)}><ha-icon icon="mdi:plus-circle-outline"></ha-icon></button>
                 </div>
               ` : html`
@@ -381,9 +385,9 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
               <div class="sum-row">
                 <span>Typ</span>
                 <select class="type-sel" .value=${this._editType} @change=${e => { this._editType = e.target.value; this._autoSave(); }}>
-                    <option value="work">💼 Arbeit</option>
-                    <option value="vacation">🏝️ Urlaub</option>
-                    <option value="sick">🤒 Krank</option>
+                    <option value="work">Arbeit</option>
+                    <option value="vacation">Urlaub</option>
+                    <option value="sick">Krank</option>
                 </select>
               </div>
             </div>
@@ -447,11 +451,12 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
       .status-badge.on { background: rgba(16, 185, 129, 0.2); color: var(--jc-success); }
       .status-badge.off { background: rgba(255,255,255,0.05); color: var(--jc-dim); }
 
-      .hero-controls { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+      .hero-controls { display: flex; flex-direction: row; gap: 8px; flex: 1; align-items: center; }
       .action-btn {
-        height: 38px; border-radius: 12px; border: 1px solid var(--jc-border);
+        height: 48px; border-radius: 12px; border: 1px solid var(--jc-border);
         background: var(--jc-glass); color: white; cursor: pointer;
         display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 700;
+        flex: 1;
       }
       .action-btn.start { background: var(--jc-success); border: none; }
       .action-btn.stop { background: var(--jc-danger); border: none; }
