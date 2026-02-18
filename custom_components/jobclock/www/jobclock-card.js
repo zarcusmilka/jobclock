@@ -125,7 +125,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     this.fetchData();
   }
 
-  async saveSessions() {
+  async _autoSave() {
     const stateObj = this.hass.states[this.config.entity];
     await this.hass.callWS({
       type: "jobclock/update_sessions",
@@ -137,12 +137,14 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
       })).filter(s => s.duration >= 0),
       status_type: this._editType
     });
-    this._editorOpen = false;
     this.fetchData();
   }
 
+
+
   deleteSession(idx) {
     this._editSessions = this._editSessions.filter((_, i) => i !== idx);
+    this._autoSave();
   }
 
   addSession(startStr, endStr, location) {
@@ -164,6 +166,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     });
     this._addFormOpen = false;
     this.requestUpdate();
+    this._autoSave();
   }
 
   exportToCSV() {
@@ -346,11 +349,11 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
                 <div class="session-row">
                   <span class="session-num">#${i + 1}</span>
                   <div class="session-edit-group">
-                      <input type="time" .value=${new Date(s.start).toTimeString().slice(0, 5)} @change=${e => { s.start = `${this._detailDate}T${e.target.value}:00`; this.requestUpdate(); }}>
+                      <input type="time" .value=${new Date(s.start).toTimeString().slice(0, 5)} @change=${e => { s.start = `${this._detailDate}T${e.target.value}:00`; this.requestUpdate(); this._autoSave(); }}>
                       <span>—</span>
-                      <input type="time" .value=${new Date(s.end).toTimeString().slice(0, 5)} @change=${e => { s.end = `${this._detailDate}T${e.target.value}:00`; this.requestUpdate(); }}>
+                      <input type="time" .value=${new Date(s.end).toTimeString().slice(0, 5)} @change=${e => { s.end = `${this._detailDate}T${e.target.value}:00`; this.requestUpdate(); this._autoSave(); }}>
                   </div>
-                  <select class="row-loc-sel" .value=${s.location || 'office'} @change=${e => { s.location = e.target.value; this.requestUpdate(); }}>
+                  <select class="row-loc-sel" .value=${s.location || 'office'} @change=${e => { s.location = e.target.value; this.requestUpdate(); this._autoSave(); }}>
                     <option value="office">🏢</option>
                     <option value="home">🏠</option>
                   </select>
@@ -377,7 +380,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
               <div class="sum-row"><span>Soll</span><span class="sum-val">${targetH}h</span></div>
               <div class="sum-row">
                 <span>Typ</span>
-                <select class="type-sel" .value=${this._editType} @change=${e => this._editType = e.target.value}>
+                <select class="type-sel" .value=${this._editType} @change=${e => { this._editType = e.target.value; this._autoSave(); }}>
                     <option value="work">💼 Arbeit</option>
                     <option value="vacation">🏝️ Urlaub</option>
                     <option value="sick">🤒 Krank</option>
@@ -386,9 +389,6 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
             </div>
           </div>
 
-          <div class="modal-footer">
-            <button class="btn secondary" @click=${this.closeDayDetail}>Abbrechen</button>
-            <button class="btn primary" @click=${this.saveSessions}>Speichern</button>
           </div>
         </div>
       </div>
@@ -518,10 +518,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
 
       .type-sel { background: #0f172a; color: white; border: 1px solid var(--jc-border); border-radius: 8px; padding: 6px 10px; font-size: 0.9rem; font-weight: 700; width: 120px; }
 
-      .modal-footer { margin-top: 20px; display: flex; gap: 12px; }
-      .btn { flex: 1; padding: 14px; border-radius: 14px; border: none; font-weight: 700; cursor: pointer; font-size: 1rem; }
-      .btn.primary { background: var(--jc-primary); color: white; }
-      .btn.secondary { background: none; border: 1px solid var(--jc-border); color: var(--jc-dim); }
+
 
       /* Mobile */
       @media (max-width: 500px) {
@@ -550,7 +547,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
         .session-row { padding: 10px 8px; gap: 6px; }
         .session-edit-group input { width: 85px; height: 38px; font-size: 1.1rem; }
         .row-loc-sel { font-size: 1.3rem; }
-        .btn { padding: 16px; font-size: 1.05rem; }
+        .row-loc-sel { font-size: 1.3rem; }
       }
     `;
   }
