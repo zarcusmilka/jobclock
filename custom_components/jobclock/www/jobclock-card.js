@@ -27,7 +27,7 @@ const fmtDur = (seconds) => {
 
 class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement : HTMLElement) {
   static get properties() {
-    console.info("%c JobClock Card v1.5.2 Loaded ", "color: white; background: #6366f1; font-weight: bold;");
+    console.info("%c JobClock Card v1.5.3 Loaded ", "color: white; background: #6366f1; font-weight: bold;");
     return {
       hass: {},
       config: {},
@@ -316,14 +316,22 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
             <span class="dn ${timeColor}">${i}</span>
             ${dd?.duration > 0 || (dd?.type && dd?.type !== 'work') ? html`
               <span class="dt ${timeColor}">
-                ${dd?.type === 'vacation' ? html`<ha-icon icon="mdi:beach" style="--mdc-icon-size: 14px;"></ha-icon>` :
-            dd?.type === 'sick' ? html`<ha-icon icon="mdi:emoticon-sick" style="--mdc-icon-size: 14px;"></ha-icon>` :
-              (dd?.duration / 3600).toFixed(1) + 'h'}
+                ${dd?.type === 'vacation' ? html`<ha-icon icon="mdi:umbrella-beach" style="--mdc-icon-size: 14px;"></ha-icon>` :
+            dd?.type === 'sick' ? html`<ha-icon icon="mdi:medical-bag" style="--mdc-icon-size: 14px;"></ha-icon>` :
+              ((dd?.duration || 0) / 3600).toFixed(1) + 'h'}
               </span>
             ` : ""}
           </div>
         `);
     }
+
+    // Fill up to 42 cells (6 rows * 7 days) to maintain fixed height
+    const totalCells = days.length;
+    const remaining = 42 - totalCells;
+    for (let i = 0; i < remaining; i++) {
+      days.push(html`<div class="cal-empty"></div>`);
+    }
+
     return days;
   }
 
@@ -437,7 +445,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
         background: var(--jc-glass); border: 1px solid var(--jc-border); border-radius: 18px;
       }
       .glass-orb {
-        width: 110px; height: 110px; border-radius: 50%;
+        width: 90px; height: 90px; border-radius: 50%;
         background: rgba(99, 102, 241, 0.05); border: 2px solid var(--jc-border);
         display: flex; align-items: center; justify-content: center;
         flex-shrink: 0; position: relative;
@@ -451,9 +459,9 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
       .status-badge.on { background: rgba(16, 185, 129, 0.2); color: var(--jc-success); }
       .status-badge.off { background: rgba(255,255,255,0.05); color: var(--jc-dim); }
 
-      .hero-controls { display: flex; flex-direction: row; gap: 8px; flex: 1; align-items: center; }
+      .hero-controls { display: flex; flex-direction: row; gap: 16px; flex: 1; align-items: center; }
       .action-btn {
-        height: 48px; border-radius: 12px; border: 1px solid var(--jc-border);
+        height: 56px; border-radius: 28px; border: 1px solid var(--jc-border);
         background: var(--jc-glass); color: white; cursor: pointer;
         display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 700;
         flex: 1;
