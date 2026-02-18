@@ -26,8 +26,15 @@ This file contains the development history and task tracking for the JobClock in
     - [x] Frontend: Day Detail opens directly in Edit mode
     - [x] Frontend: Improved touch targets and mobile fonts
     - [x] Final Verification & Push v1.5.0
+- [x] v1.5.1: Auto-Save & Polish
+    - [x] Frontend: Removed Save/Cancel buttons (Auto-Save on input)
+    - [x] Docs: Updated version in README and manifests
 
 ## Feature Walkthrough History
+
+### v1.5.1 Auto-Save & Polish
+- **Auto-Save**: The Day Detail popup now saves changes immediately. No more "Save" or "Cancel" buttons required.
+- **Fluid UX**: Editing sessions, times, or types is now instant and frictionless.
 
 ### v1.5.0 Mobile UX Excellence
 - **Ultra-Compact Header**: Reduced padding/margins to maximize vertical screen space for the dashboard.
