@@ -90,13 +90,22 @@ This file contains the development history and task tracking for the JobClock in
 
 To deploy a new version of JobClock, follow these steps:
 
-### 1. Update Version Numbers
-Update the version string (e.g., `v1.5.0`) in the following **3 files**:
+### 1. Build the Tailwind UI (Crucial)
+Before deploying, the Tailwind CSS utility classes must be compiled and injected securely into the Web Component's Shadow DOM. This ensures fast, offline rendering in Home Assistant without relying on external CDNs or facing Content Security Policy blockages.
+
+Run the provided Node.js build script from your terminal:
+```bash
+node scripts/build_ui.js
+```
+*Note: This script will download the latest `tailwindcss` via `npx`, parse `jobclock-card.js` and `dev.html`, minify the resulting CSS, correctly escape it for JavaScript Template Literals (`\`), and inject it into `jobclock-card.js`.*
+
+### 2. Update Version Numbers
+Update the version string (e.g., `v2.0.4`) in the following **3 files** to force clients to clear their cache:
 1.  `custom_components/jobclock/manifest.json` ("version": "x.x.x")
 2.  `custom_components/jobclock/__init__.py` (inside `module_url` param)
 3.  `custom_components/jobclock/www/jobclock-panel.js` (inside `import` statement)
 
-### 2. Git Commands (PowerShell 5.1 Compatible)
+### 3. Git Commands (PowerShell 5.1 Compatible)
 Run these commands sequentially to commit, tag, and push:
 
 ```powershell
@@ -108,10 +117,10 @@ git commit -m "feat: description of changes"
 git push
 
 # 3. Create and Push Tag (Triggers Releases)
-git tag v1.5.0
-git push origin v1.5.0
+git tag v2.0.4
+git push origin v2.0.4
 ```
 
-### 3. Post-Deployment
-- **Restart Home Assistant** to load the new Python component.
-- **Clear Browser Cache** (or reload the app) on all devices to load the new JavaScript frontend.
+### 4. Post-Deployment
+- **Restart Home Assistant** to load the new Python component (if __init__.py changed).
+- **Clear Browser Cache** (CTRL + F5) or reload the Companion App on all devices to ensure the new JavaScript frontend loads smoothly.
