@@ -99,11 +99,13 @@ node scripts/build_ui.js
 ```
 *Note: This script will run `npm run build` cleanly using Vite, processing `src/jobclock-card.js` and inlining `src/style.css` via the native Vite Tailwind CSS plugin into a single module ready for Home Assistant.*
 
-### 2. Update Version Numbers
-Update the version string (e.g., `v2.0.6`) in the following **3 files** to force clients to clear their cache:
+### 2. Update Version Numbers & Documentation
+Update the version string (e.g., `v2.0.7`) in the following **5 files** to force clients to clear their cache and keep docs in sync:
 1.  `custom_components/jobclock/manifest.json` ("version": "x.x.x")
 2.  `custom_components/jobclock/__init__.py` (inside `module_url` param)
 3.  `custom_components/jobclock/www/jobclock-panel.js` (inside `import` statement)
+4.  `README.md` (Update the version badges)
+5.  `DEVELOPMENT.md` (Update the version string examples in this block)
 
 ### 3. Git Commands (PowerShell 5.1 Compatible)
 Run these commands sequentially to commit, tag, and push:
@@ -117,8 +119,8 @@ git commit -m "feat: description of changes"
 git push
 
 # 3. Create and Push Tag (Triggers Releases)
-git tag v2.0.6
-git push origin v2.0.6
+git tag v2.0.7
+git push origin v2.0.7
 ```
 
 ### 4. Post-Deployment
