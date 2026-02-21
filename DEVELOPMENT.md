@@ -33,7 +33,7 @@ This file contains the development history and task tracking for the JobClock in
     - [x] Frontend: Side-by-side buttons (Start/Stop + Mode)
     - [x] Frontend: Replaced emojis with professional icons (mdi)
     - [x] Docs: Updated version and deployment instructions
-- [x] v2.0.0: Tailwind CSS Rewrite
+- [x] v2.0.1: Tailwind CSS Rewrite
     - [x] Frontend: Replaced custom CSS with Tailwind CSS CDN integration
     - [x] Frontend: Implemented new glassmorphic UI design
     - [x] Frontend: Disabled LitElement Shadow DOM to allow global Tailwind classes
@@ -41,7 +41,7 @@ This file contains the development history and task tracking for the JobClock in
 
 ## Feature Walkthrough History
 
-### v2.0.0 Tailwind CSS Rewrite
+### v2.0.1 Tailwind CSS Rewrite
 - **Complete Visual Overhaul**: The entire JobClock dashboard has been rewritten using Tailwind CSS to provide a modern, sleek, and highly responsive user interface.
 - **Glassmorphic Design**: Introduces blurred backgrounds, glowing orbs, and gradients for a premium look and feel.
 - **Global Styling**: Shifted away from isolated component css by disabling the Shadow DOM and injecting Tailwind CSS via CDN.
