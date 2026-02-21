@@ -1,6 +1,6 @@
 # JobClock for Home Assistant
 
-[![GitHub Tag](https://img.shields.io/badge/version-2.0.2-blue.svg)](https://github.com/zarcusmilka/jobclock/tags)
+[![GitHub Tag](https://img.shields.io/badge/version-2.0.3-blue.svg)](https://github.com/zarcusmilka/jobclock/tags)
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 [![Maintainer](https://img.shields.io/badge/maintainer-ZarcusM-blue.svg)](https://github.com/zarcusmilka)
 
@@ -9,7 +9,7 @@ A smart work-time tracking integration for Home Assistant.
 
 
 > [!IMPORTANT]
-> **Tailwind UI Rewrite (v2.0.2)**: Complete overhaul of the JobClock dashboard using a modern Tailwind CSS design for a sleek, glassmorphic look.
+> **Tailwind UI Rewrite (v2.0.3)**: Complete overhaul of the JobClock dashboard using a modern Tailwind CSS design for a sleek, glassmorphic look.
 
 ## Features
 
