@@ -273,23 +273,10 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     return html`
       <div class="w-full max-w-md mx-auto space-y-4 font-sans text-neutral-100 selection:bg-purple-500/30">
           
-          <!-- HEADER -->
-          <div class="flex justify-between items-center mb-6">
-            <div>
-              <div class="flex items-center gap-2">
-                <h1 class="text-2xl font-bold tracking-tight text-white">JobClock</h1>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" class="text-neutral-500 mt-1" stroke="currentColor" stroke-width="2"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
-              </div>
-              <p class="text-neutral-400 text-sm mt-0.5 font-medium">Heute, ${todayFormatted}</p>
-            </div>
-            <div class="flex gap-2">
-                <button class="px-4 py-1.5 rounded-full bg-neutral-800/40 border border-neutral-700/30 text-neutral-400 text-sm font-semibold hover:text-white transition cursor-default">
-                    Alexa
-                </button>
-                <button @click="${this._showSettings}" class="px-4 py-1.5 rounded-full bg-purple-600 text-white text-sm font-semibold shadow-[0_0_12px_rgba(168,85,247,0.4)] transition">
-                    Marcus
-                </button>
-            </div>
+          <!-- DATE BAR (Header is provided by jobclock-panel.js) -->
+          <div class="flex items-center gap-2 mb-4">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" class="text-neutral-500" stroke="currentColor" stroke-width="2"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
+            <p class="text-neutral-400 text-sm font-medium">Heute, ${todayFormatted}</p>
           </div>
 
           <!-- TIMER CARD -->

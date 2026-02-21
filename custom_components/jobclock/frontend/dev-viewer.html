@@ -32,7 +32,7 @@
 
         const mockHass = {
             states: {
-                "sensor.jobclock_person_marcus": {
+                "sensor.jobclock_person_user1": {
                     state: "12:00",
                     attributes: {
                         is_working: true,
@@ -82,7 +82,7 @@
         // Load the bundled card from the www folder
         import("../www/jobclock-card.js").then(() => {
             const card = document.querySelector('jobclock-card');
-            card.setConfig({ entity: "sensor.jobclock_person_marcus" });
+            card.setConfig({ entity: "sensor.jobclock_person_user1" });
             card.hass = mockHass;
         }).catch(err => console.error("Error loading bundled card:", err));
     </script>

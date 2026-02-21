@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,6 +16,7 @@
             display: flex;
             justify-content: center;
         }
+
         /* Mock CSS Variables to match HA Dark Mode */
         :root {
             --primary-background-color: #111;
@@ -26,12 +28,14 @@
             --app-header-text-color: #fff;
             --mdc-icon-size: 24px;
         }
+
         jobclock-card {
             width: 100%;
             display: block;
         }
     </style>
 </head>
+
 <body>
 
     <!-- Container for our card -->
@@ -45,7 +49,7 @@
         LitElement.prototype.css = css;
 
         // Define a fake panel so the card can find the base class
-        class FakePanel extends LitElement {}
+        class FakePanel extends LitElement { }
         customElements.define("ha-panel-lovelace", FakePanel);
 
         // 2. Import the Card (Must be AFTER the shim)
@@ -54,10 +58,10 @@
         // 3. Mock Data & HASS Object
         const mockHass = {
             states: {
-                "sensor.jobclock_marcus": {
+                "sensor.jobclock_user1": {
                     state: "working",
                     attributes: {
-                        friendly_name: "JobClock Marcus",
+                        friendly_name: "JobClock User 1",
                         switch_entity: "switch.home_office",
                         session_start: new Date(Date.now() - 3600 * 1000).toISOString(), // 1 hour ago
                         entry_id: "mock_entry_id"
@@ -86,10 +90,10 @@
 
         // 4. Initialize the Card
         const card = document.getElementById('dev-card');
-        
+
         await customElements.whenDefined('jobclock-card');
-        
-        card.setConfig({ entity: "sensor.jobclock_marcus" });
+
+        card.setConfig({ entity: "sensor.jobclock_user1" });
         card.hass = mockHass;
 
         setInterval(() => {
@@ -98,4 +102,5 @@
 
     </script>
 </body>
+
 </html>

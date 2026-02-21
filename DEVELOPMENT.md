@@ -86,6 +86,102 @@ This file contains the development history and task tracking for the JobClock in
 - **Typography & Spacing**: Refined Inter-based typography and generous whitespace for better readability.
 - **Hero Dashboard**: A centered, glowing timer that pulses when active (`active` session).
 - **Real-time Updates**: The timer now updates every second while working.
+## Project Architecture
+
+### Directory Structure
+```
+JobClock/
+├── custom_components/jobclock/
+│   ├── __init__.py              # HA integration entry (registers panel, WS API)
+│   ├── manifest.json            # HA integration manifest (version, dependencies)
+│   ├── frontend/                # Source code (NOT deployed to HA)
+│   │   ├── src/
+│   │   │   ├── jobclock-card.js # Main Lit Web Component (source)
+│   │   │   └── style.css        # Tailwind CSS entry (imported by Vite)
+│   │   ├── dev-viewer.html      # Standalone test page with mock HA data
+│   │   ├── vite.config.js       # Vite build config (outputs to ../www/)
+│   │   └── package.json         # Node dependencies (Vite, Tailwind v4, Lit)
+│   └── www/                     # Production build output (served by HA)
+│       ├── jobclock-card.js     # Bundled card (Vite output, DO NOT EDIT)
+│       └── jobclock-panel.js    # Panel loader (imports jobclock-card.js)
+├── README.md
+└── DEVELOPMENT.md
+```
+
+### Tech Stack
+- **UI Framework**: [Lit](https://lit.dev/) v3 Web Components
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/) v4, inlined via `@tailwindcss/vite` plugin
+- **Bundler**: [Vite](https://vite.dev/) v7, builds `src/jobclock-card.js` → `www/jobclock-card.js`
+- **Backend**: Python (Home Assistant custom integration), WebSocket API
+- **Shadow DOM**: Disabled (`createRenderRoot() { return this; }`) so Tailwind classes apply globally
+
+---
+
+## Local Development & Testing
+
+### Prerequisites
+1. **Node.js** (v18+) and **npm** installed
+2. **A simple HTTP server** to serve the dev-viewer (e.g. `npx serve`, Python's `http.server`, or VS Code Live Server)
+
+### Setup (One-Time)
+```bash
+cd custom_components/jobclock/frontend
+npm install
+```
+
+### Development Workflow
+
+#### 1. Edit Source Code
+Edit the component source at:
+```
+custom_components/jobclock/frontend/src/jobclock-card.js
+```
+
+#### 2. Build the Bundle
+After making changes, build the production bundle:
+```bash
+cd custom_components/jobclock/frontend
+npm run build
+```
+This runs Vite, which:
+- Processes `src/jobclock-card.js` as the entry point
+- Inlines Tailwind CSS from `src/style.css` via `@tailwindcss/vite`
+- Bundles Lit and all dependencies into a single ES module
+- Outputs to `../www/jobclock-card.js`
+
+#### 3. Test Locally with Dev-Viewer
+The **Dev-Viewer** (`frontend/dev-viewer.html`) is a standalone HTML page that renders the card with mock Home Assistant data — **no running HA instance needed**.
+
+Start any HTTP server from the **project root**:
+```bash
+# Option A: Python
+cd /path/to/JobClock/custom_components/jobclock
+python3 -m http.server 3000
+
+# Option B: npx serve
+cd /path/to/JobClock/custom_components/jobclock
+npx -y serve -l 3000
+```
+
+Then open in your browser:
+```
+http://localhost:3000/frontend/dev-viewer.html
+```
+
+The Dev-Viewer provides:
+- **Mock `hass` object** with sensor states, sessions, and work data
+- **Mock `callWS`** that returns sample days (work, vacation, sick)
+- **Mock `callService`** that logs calls to the console
+- Loads the **built bundle** from `../www/jobclock-card.js` (not the source!)
+
+> [!IMPORTANT]
+> The Dev-Viewer loads the **built** `www/jobclock-card.js`, not the source file. You must run `npm run build` after every code change before refreshing the viewer.
+
+#### 4. Iterate
+Repeat: **Edit → Build → Refresh Browser** until satisfied.
+
+---
+
 ## Release & Deployment Workflow
 
 To deploy a new version of JobClock, follow these steps:
@@ -100,7 +196,7 @@ node scripts/build_ui.js
 *Note: This script will run `npm run build` cleanly using Vite, processing `src/jobclock-card.js` and inlining `src/style.css` via the native Vite Tailwind CSS plugin into a single module ready for Home Assistant.*
 
 ### 2. Update Version Numbers & Documentation
-Update the version string (e.g., `v2.0.9`) in the following **5 files** to force clients to clear their cache and keep docs in sync:
+Update the version string (e.g., `v2.1.0`) in the following **5 files** to force clients to clear their cache and keep docs in sync:
 1.  `custom_components/jobclock/manifest.json` ("version": "x.x.x")
 2.  `custom_components/jobclock/__init__.py` (inside `module_url` param)
 3.  `custom_components/jobclock/www/jobclock-panel.js` (inside `import` statement)
@@ -119,8 +215,8 @@ git commit -m "feat: description of changes"
 git push
 
 # 3. Create and Push Tag (Triggers Releases)
-git tag v2.0.9
-git push origin v2.0.9
+git tag v2.1.0
+git push origin v2.1.0
 ```
 
 ### 4. Post-Deployment
