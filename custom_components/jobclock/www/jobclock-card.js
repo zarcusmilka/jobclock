@@ -42,9 +42,6 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     this._editType = "work";
   }
 
-  }
-
-
   setConfig(config) {
     this.config = config;
   }
@@ -109,15 +106,15 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     });
     this.fetchData();
   }
-  
+
   async _handleModeChange(mode) {
     const stateObj = this.hass.states[this.config.entity];
     const switchEntity = stateObj.attributes.switch_entity;
-    if(!switchEntity) return;
-    
+    if (!switchEntity) return;
+
     const isHO = this.hass.states[switchEntity]?.state === "on";
     if ((mode === 'home' && !isHO) || (mode === 'office' && isHO)) {
-        await this.hass.callService("homeassistant", "toggle", { entity_id: switchEntity });
+      await this.hass.callService("homeassistant", "toggle", { entity_id: switchEntity });
     }
   }
 
@@ -176,17 +173,17 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     a.download = `jobclock_export_${formatDateLocal(new Date())}.csv`;
     a.click();
   }
-  
+
   formatTime(totalSeconds) {
     const h = Math.floor(totalSeconds / 3600);
     const m = Math.floor((totalSeconds % 3600) / 60);
     const s = Math.floor(totalSeconds % 60);
-    if(h > 0) return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    if (h > 0) return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   }
-  
+
   formatShortTime(totalSeconds) {
-      return (totalSeconds / 3600).toFixed(1) + 'h';
+    return (totalSeconds / 3600).toFixed(1) + 'h';
   }
 
   _showSettings() {
@@ -217,7 +214,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     }
     const todayData = this._data[formatDateLocal(new Date())] || { duration: 0, target: 0 };
     const timeWorked = (todayData.duration || 0) + currentSessionDuration;
-    const targetTime = todayData.target || (8*3600); // fallback 8h
+    const targetTime = todayData.target || (8 * 3600); // fallback 8h
 
     // Monthly Stats
     let totalSeconds = 0;
@@ -226,10 +223,10 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
       totalSeconds += d.duration || 0;
       totalTarget += d.target || 0;
     });
-    
+
     if (isWorking) {
-        // add current session to monthly total
-        totalSeconds += currentSessionDuration;
+      // add current session to monthly total
+      totalSeconds += currentSessionDuration;
     }
 
     const dynamicMonthlyStats = {
@@ -240,14 +237,14 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
 
     // UI State variables
     const isActive = isWorking;
-    
+
     // Orb Berechnungen für den SVG-Kreis
     const percentage = Math.min((timeWorked / targetTime) * 100, 100);
     const isOvertime = timeWorked > targetTime;
-    const radius = 64; 
+    const radius = 64;
     const circumference = 2 * Math.PI * radius;
     const strokeDashoffset = circumference - (percentage / 100) * circumference;
-    
+
     const todayFormatted = new Date().toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: 'short' });
     const monthName = this._currentMonth.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
 
@@ -331,23 +328,20 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
               
               ${switchEntity ? html`
               <div class="relative flex w-full bg-neutral-900/80 rounded-xl p-1 border border-neutral-700/50 shadow-inner">
-                <div class="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg transition-all duration-300 ease-out shadow-sm ${
-                    workMode === 'office' ? 'translate-x-[calc(100%+4px)] bg-blue-500/20 border border-blue-500/30' : 'translate-x-0 bg-purple-500/20 border border-purple-500/30'
-                  } ${!isActive ? 'opacity-50 grayscale' : ''}"></div>
+                <div class="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg transition-all duration-300 ease-out shadow-sm ${workMode === 'office' ? 'translate-x-[calc(100%+4px)] bg-blue-500/20 border border-blue-500/30' : 'translate-x-0 bg-purple-500/20 border border-purple-500/30'
+        } ${!isActive ? 'opacity-50 grayscale' : ''}"></div>
 
                 <button 
                   @click="${() => this._handleModeChange('home')}"
-                  class="flex-1 relative z-10 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition-colors ${
-                    workMode === 'home' ? (isActive ? 'text-purple-300' : 'text-neutral-300') : 'text-neutral-500 hover:text-neutral-300'
-                  }"
+                  class="flex-1 relative z-10 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition-colors ${workMode === 'home' ? (isActive ? 'text-purple-300' : 'text-neutral-300') : 'text-neutral-500 hover:text-neutral-300'
+        }"
                 >
                   Home
                 </button>
                 <button 
                   @click="${() => this._handleModeChange('office')}"
-                  class="flex-1 relative z-10 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition-colors ${
-                    workMode === 'office' ? (isActive ? 'text-blue-300' : 'text-neutral-300') : 'text-neutral-500 hover:text-neutral-300'
-                  }"
+                  class="flex-1 relative z-10 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition-colors ${workMode === 'office' ? (isActive ? 'text-blue-300' : 'text-neutral-300') : 'text-neutral-500 hover:text-neutral-300'
+        }"
                 >
                   Büro
                 </button>
@@ -366,9 +360,8 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
                       <span class="text-xs font-medium text-neutral-500">/ ${dynamicMonthlyStats.soll.toFixed(1)}h</span>
                     </div>
                   </div>
-                  <div class="flex items-center justify-center px-2 py-1 rounded-lg text-xs font-bold ${
-                    dynamicMonthlyStats.saldo >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                  }">
+                  <div class="flex items-center justify-center px-2 py-1 rounded-lg text-xs font-bold ${dynamicMonthlyStats.saldo >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+      }">
                     ${dynamicMonthlyStats.saldo > 0 ? '+' : ''}${dynamicMonthlyStats.saldo.toFixed(1)}h
                   </div>
                 </div>
@@ -425,13 +418,13 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
       const isWork = dd?.type === 'work' || !dd?.type;
       const target = dd?.target || 0;
       const duration = dd?.duration || 0;
-      
+
       let bgCls = "bg-white/5 hover:bg-white/10";
       let borderCls = isToday ? "border-2 border-primary" : "border border-transparent";
-      
-      if(isToday) {
-         bgCls = "bg-indigo-500/10";
-         borderCls = "border-2 border-indigo-500";
+
+      if (isToday) {
+        bgCls = "bg-indigo-500/10";
+        borderCls = "border-2 border-indigo-500";
       }
 
       let timeColor = "text-neutral-400";
