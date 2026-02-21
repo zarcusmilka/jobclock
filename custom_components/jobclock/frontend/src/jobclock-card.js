@@ -271,14 +271,17 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     const modeStrokeClass = workMode === 'home' ? 'stroke-purple-500' : 'stroke-blue-500';
 
     return html`
-      <div class="w-full max-w-md mx-auto space-y-4 font-sans text-neutral-100 selection:bg-purple-500/30">
+      <div class="w-full max-w-xl mx-auto space-y-4 font-sans text-neutral-100 selection:bg-purple-500/30">
           
 
 
           <!-- TIMER CARD -->
-          <div class="bg-gradient-to-b from-neutral-800/80 to-neutral-900/80 backdrop-blur-xl rounded-3xl p-5 sm:p-6 border border-neutral-700/30 shadow-[0_8px_30px_rgba(0,0,0,0.2)] relative overflow-hidden flex flex-row items-center gap-6">
-            <!-- Ambient Glow -->
-            <div class="absolute -top-16 -left-16 w-64 h-64 rounded-full blur-[80px] opacity-20 pointer-events-none transition-colors duration-1000 ${modeGlowBg}"></div>
+          <div class="${isActive
+        ? 'bg-gradient-to-b from-neutral-800/80 to-neutral-900/80 backdrop-blur-xl rounded-3xl p-5 sm:p-6 border border-neutral-700/30 shadow-[0_8px_30px_rgba(0,0,0,0.2)]'
+        : 'bg-neutral-800/50 rounded-3xl p-5 sm:p-6 border border-purple-500/10 hover:border-purple-500/20 transition-colors'
+      } relative overflow-hidden flex flex-row items-center gap-6">
+            <!-- Ambient Glow (only when active) -->
+            ${isActive ? html`<div class="absolute -top-16 -left-16 w-64 h-64 rounded-full blur-[80px] opacity-20 pointer-events-none transition-colors duration-1000 ${modeGlowBg}"></div>` : ''}
                 
                 <!-- ORB -->
                 <button 
@@ -389,19 +392,19 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
 
             <div class="flex justify-between items-end h-28 gap-2 mt-6">
                 ${weekDaysInfo.map(day => {
-      const isWeekend = day.type === 'weekend';
-      const targetH = day.target;
-      const workedH = day.duration;
-      const isCurrentDay = day.label === ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'][new Date().getDay()];
+        const isWeekend = day.type === 'weekend';
+        const targetH = day.target;
+        const workedH = day.duration;
+        const isCurrentDay = day.label === ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'][new Date().getDay()];
 
-      let barHtml = '';
-      if (isWeekend || targetH === 0) {
-        barHtml = html`<div class="relative w-full h-20 bg-neutral-800 rounded-lg border border-neutral-700/30 overflow-hidden group"></div>`;
-      } else {
-        const heightPct = Math.min((workedH / Math.max(targetH, 1)) * 100, 100);
-        const borderCls = isCurrentDay ? 'border-neutral-500/50' : 'border-neutral-700/30';
-        const barColor = workMode === 'home' ? 'bg-purple-500' : 'bg-blue-500';
-        barHtml = html`
+        let barHtml = '';
+        if (isWeekend || targetH === 0) {
+          barHtml = html`<div class="relative w-full h-20 bg-neutral-800 rounded-lg border border-neutral-700/30 overflow-hidden group"></div>`;
+        } else {
+          const heightPct = Math.min((workedH / Math.max(targetH, 1)) * 100, 100);
+          const borderCls = isCurrentDay ? 'border-neutral-500/50' : 'border-neutral-700/30';
+          const barColor = workMode === 'home' ? 'bg-purple-500' : 'bg-blue-500';
+          barHtml = html`
                         <div class="relative w-full flex flex-col justify-end h-20 bg-neutral-800 rounded-lg border ${borderCls} overflow-hidden group">
                             <div class="w-full ${barColor} rounded-b-lg transition-all duration-1000 ease-out" style="height: ${heightPct}%"></div>
                             <div class="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-neutral-900 text-xs px-2 py-1 rounded border border-neutral-600 whitespace-nowrap text-white font-mono z-10">
@@ -409,9 +412,9 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
                             </div>
                         </div>
                        `;
-      }
+        }
 
-      return html`
+        return html`
                     <div class="flex flex-col items-center gap-2 flex-1 h-full">
                         <div class="w-full flex-1 flex flex-col justify-end">
                             ${barHtml}
@@ -419,7 +422,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
                         <span class="text-[11px] font-semibold ${isCurrentDay ? 'text-white' : 'text-neutral-500'}">${day.label}</span>
                     </div>
                    `;
-    })}
+      })}
             </div>
           </div>
 
