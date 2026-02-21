@@ -273,11 +273,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     return html`
       <div class="w-full max-w-md mx-auto space-y-4 font-sans text-neutral-100 selection:bg-purple-500/30">
           
-          <!-- DATE BAR (Header is provided by jobclock-panel.js) -->
-          <div class="flex items-center gap-2 mb-4">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" class="text-neutral-500" stroke="currentColor" stroke-width="2"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
-            <p class="text-neutral-400 text-sm font-medium">Heute, ${todayFormatted}</p>
-          </div>
+
 
           <!-- TIMER CARD -->
           <div class="bg-gradient-to-b from-neutral-800/80 to-neutral-900/80 backdrop-blur-xl rounded-3xl p-5 sm:p-6 border border-neutral-700/30 shadow-[0_8px_30px_rgba(0,0,0,0.2)] relative overflow-hidden flex flex-row items-center gap-6">

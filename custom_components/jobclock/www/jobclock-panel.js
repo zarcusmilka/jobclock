@@ -3,7 +3,7 @@ const LitElement = Object.getPrototypeOf(customElements.get("ha-panel-lovelace")
 const html = LitElement.prototype.html;
 const css = LitElement.prototype.css;
 
-import "/jobclock_static/jobclock-card.js?v=2.1.0";
+import "/jobclock_static/jobclock-card.js?v=2.1.1";
 
 class JobClockPanel extends LitElement {
   static get properties() {
@@ -55,17 +55,33 @@ class JobClockPanel extends LitElement {
     }
   }
 
+  get _todayFormatted() {
+    const d = new Date();
+    const months = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+      'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+    return `${d.getDate()}. ${months[d.getMonth()]}`;
+  }
+
   render() {
     if (!this.hass) return html``;
 
     return html`
       <div class="panel-root">
-        <div class="header">
-          <div class="header-content">
-            <ha-menu-button .hass=${this.hass} .narrow=${this.narrow}></ha-menu-button>
-            <div class="title">JobClock</div>
-            ${this._instances.length > 1 ? html`
-              <div class="tabs-container">
+        <div class="main-content">
+          <div class="card-wrapper">
+            <!-- Integrated header matching card design -->
+            <div class="integrated-header">
+              <div class="header-left">
+                <div class="title-row">
+                  <h1 class="title">JobClock</h1>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="pin-icon">
+                    <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
+                    <circle cx="12" cy="10" r="3"/>
+                  </svg>
+                </div>
+                <p class="date">Heute, ${this._todayFormatted}</p>
+              </div>
+              ${this._instances.length > 1 ? html`
                 <div class="tabs">
                   ${this._instances.map(i => html`
                     <div class="tab ${this._selectedInstance === i.id ? 'active' : ''}"
@@ -74,13 +90,11 @@ class JobClockPanel extends LitElement {
                     </div>
                   `)}
                 </div>
-              </div>
-            ` : ""}
+              ` : ""}
+            </div>
+
+            ${this._renderContent()}
           </div>
-        </div>
-        
-        <div class="main-content">
-          ${this._renderContent()}
         </div>
       </div>
     `;
@@ -99,9 +113,7 @@ class JobClockPanel extends LitElement {
     }
 
     return html`
-      <div class="card-wrapper">
-        <jobclock-card .hass=${this.hass} .config=${this._cardConfig}></jobclock-card>
-      </div>
+      <jobclock-card .hass=${this.hass} .config=${this._cardConfig}></jobclock-card>
     `;
   }
 
@@ -119,67 +131,6 @@ class JobClockPanel extends LitElement {
         flex-direction: column;
         height: 100%;
       }
-      .header {
-        background-color: rgba(30, 41, 59, 0.7);
-        backdrop-filter: blur(16px);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        z-index: 100;
-        padding: 4px 0;
-      }
-      .header-content {
-        height: 64px;
-        display: flex;
-        align-items: center;
-        padding: 0 16px;
-        max-width: 1200px;
-        margin: 0 auto;
-        width: 100%;
-        box-sizing: border-box;
-      }
-      .title {
-        font-size: 1.25rem;
-        font-weight: 700;
-        margin-left: 8px;
-        background: linear-gradient(to right, #818cf8, #c084fc);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        flex: 1;
-      }
-      
-      .tabs-container {
-        display: flex;
-        height: 100%;
-        align-items: center;
-      }
-      .tabs {
-        display: flex;
-        gap: 12px;
-        background: rgba(0,0,0,0.2);
-        padding: 6px;
-        border-radius: 16px;
-        border: 1px solid rgba(255,255,255,0.05);
-      }
-      .tab {
-        padding: 0 20px;
-        height: 36px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 12px;
-        cursor: pointer;
-        font-weight: 700;
-        font-size: 0.9rem;
-        color: #94a3b8;
-        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-        border: 1px solid transparent;
-        white-space: nowrap;
-      }
-      .tab:hover { color: #f8fafc; background: rgba(255,255,255,0.05); }
-      .tab.active {
-        background: #6366f1;
-        color: white;
-        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-      }
 
       .main-content {
         flex: 1;
@@ -196,6 +147,67 @@ class JobClockPanel extends LitElement {
         width: 100%;
         max-width: 800px;
       }
+
+      /* Integrated header */
+      .integrated-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+      }
+      .header-left {
+        display: flex;
+        flex-direction: column;
+      }
+      .title-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        letter-spacing: -0.025em;
+        color: #ffffff;
+        margin: 0;
+      }
+      .pin-icon {
+        color: #6b7280;
+        margin-top: 2px;
+      }
+      .date {
+        color: #9ca3af;
+        font-size: 0.875rem;
+        margin: 2px 0 0 0;
+        font-weight: 500;
+      }
+
+      .tabs {
+        display: flex;
+        gap: 8px;
+      }
+      .tab {
+        padding: 6px 20px;
+        border-radius: 9999px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: #9ca3af;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        background: rgba(38, 38, 38, 0.4);
+        border: 1px solid rgba(64, 64, 64, 0.3);
+      }
+      .tab:hover {
+        color: #f8fafc;
+        background: rgba(255, 255, 255, 0.05);
+      }
+      .tab.active {
+        background: #9333ea;
+        color: white;
+        border-color: transparent;
+        box-shadow: 0 0 12px rgba(168, 85, 247, 0.4);
+      }
+
       .empty {
         margin-top: 64px;
         text-align: center;
@@ -204,11 +216,10 @@ class JobClockPanel extends LitElement {
       }
       
       @media (max-width: 600px) {
-        .header-content { padding: 0 8px; justify-content: space-between; }
-        .title { display: none; }
         .main-content { padding: 12px 8px; }
-        .tabs { gap: 6px; padding: 4px; }
-        .tab { padding: 0 12px; height: 32px; font-size: 0.8rem; }
+        .integrated-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+        .tabs { gap: 6px; }
+        .tab { padding: 4px 14px; font-size: 0.8rem; }
       }
     `;
   }
