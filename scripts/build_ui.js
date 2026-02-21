@@ -10,8 +10,8 @@ const cardJs = path.join(wwwPath, 'jobclock-card.js');
 console.log('Building Tailwind CSS...');
 
 try {
-    // Use npx to download and run the latest tailwindcss tool directly (without needing a global installation or bulky binaries)
-    execSync(`npx -y tailwindcss@lastest -i "${inputCss}" -o "${outputCss}" --minify`, {
+    // Use npx to download and run the latest tailwindcss 3 tool directly
+    execSync(`npx -y tailwindcss@3 -i "${inputCss}" -o "${outputCss}" --minify`, {
         cwd: wwwPath,
         stdio: 'inherit'
     });
