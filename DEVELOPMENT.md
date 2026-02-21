@@ -90,17 +90,17 @@ This file contains the development history and task tracking for the JobClock in
 
 To deploy a new version of JobClock, follow these steps:
 
-### 1. Build the Tailwind UI (Crucial)
-Before deploying, the Tailwind CSS utility classes must be compiled and injected securely into the Web Component's Shadow DOM. This ensures fast, offline rendering in Home Assistant without relying on external CDNs or facing Content Security Policy blockages.
+### 1. Build the Vite UI (Crucial)
+Before deploying, the Web Component must be bundled using Vite and Tailwind v4. This ensures fast, offline rendering in Home Assistant.
 
 Run the provided Node.js build script from your terminal:
 ```bash
 node scripts/build_ui.js
 ```
-*Note: This script will download the latest `tailwindcss` via `npx`, parse `jobclock-card.js` and `dev.html`, minify the resulting CSS, correctly escape it for JavaScript Template Literals (`\`), and inject it into `jobclock-card.js`.*
+*Note: This script will run `npm run build` cleanly using Vite, processing `src/jobclock-card.js` and inlining `src/style.css` via the native Vite Tailwind CSS plugin into a single module ready for Home Assistant.*
 
 ### 2. Update Version Numbers
-Update the version string (e.g., `v2.0.4`) in the following **3 files** to force clients to clear their cache:
+Update the version string (e.g., `v2.0.5`) in the following **3 files** to force clients to clear their cache:
 1.  `custom_components/jobclock/manifest.json` ("version": "x.x.x")
 2.  `custom_components/jobclock/__init__.py` (inside `module_url` param)
 3.  `custom_components/jobclock/www/jobclock-panel.js` (inside `import` statement)
@@ -117,8 +117,8 @@ git commit -m "feat: description of changes"
 git push
 
 # 3. Create and Push Tag (Triggers Releases)
-git tag v2.0.4
-git push origin v2.0.4
+git tag v2.0.5
+git push origin v2.0.5
 ```
 
 ### 4. Post-Deployment
