@@ -246,139 +246,205 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     const circumference = 2 * Math.PI * radius;
     const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
-    const todayFormatted = new Date().toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: 'short' });
+    const todayFormatted = new Date().toLocaleDateString('de-DE', { day: 'numeric', month: 'long' });
+    const monthShortName = this._currentMonth.toLocaleDateString("de-DE", { month: "short" }).toUpperCase();
     const monthName = this._currentMonth.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
 
+    // Weekly Overview Logic (Mock data for UI matching)
+    // We'll need a way to get the week's data, for now we will stub it to match the visual
+    const weekWorked = 40.0;
+    const weekTarget = 40.0;
+    const weekDaysInfo = [
+      { label: "Mo", duration: 8, target: 8, type: "work" },
+      { label: "Di", duration: 6, target: 8, type: "work" },
+      { label: "Mi", duration: 4, target: 8, type: "work" },
+      { label: "Do", duration: 8, target: 8, type: "work" },
+      { label: "Fr", duration: 8, target: 8, type: "work" },
+      { label: "Sa", duration: 0, target: 0, type: "weekend" },
+      { label: "So", duration: 0, target: 0, type: "weekend" },
+    ];
+
+    // Modus-abhängige Farben
+    const modeColor = workMode === 'home' ? 'purple' : 'blue';
+    const modeGlowBg = workMode === 'home' ? 'bg-purple-500' : 'bg-blue-500';
+    const modeGlowBgActive = workMode === 'home' ? 'bg-purple-400' : 'bg-blue-400';
+    const modeStrokeClass = workMode === 'home' ? 'stroke-purple-500' : 'stroke-blue-500';
+
     return html`
-      <div class="min-h-screen bg-neutral-900 text-neutral-100 p-4 md:p-8 font-sans flex justify-center">
-        <div class="w-full max-w-md space-y-6">
+      <div class="min-h-screen bg-neutral-900 text-neutral-100 p-4 font-sans flex justify-center selection:bg-purple-500/30">
+        <div class="w-full max-w-md space-y-4">
           
           <!-- HEADER -->
-          <div class="flex justify-between items-center mb-2">
+          <div class="flex justify-between items-center mb-6">
             <div>
               <div class="flex items-center gap-2">
                 <h1 class="text-2xl font-bold tracking-tight text-white">JobClock</h1>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" class="text-neutral-500 mt-1" stroke="currentColor" stroke-width="2"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
               </div>
-              <p class="text-neutral-400 text-sm mt-0.5">Heute, ${todayFormatted}</p>
+              <p class="text-neutral-400 text-sm mt-0.5 font-medium">Heute, ${todayFormatted}</p>
             </div>
             <div class="flex gap-2">
-                <button @click="${this.exportToCSV}" class="p-2 rounded-full text-neutral-400 hover:text-white hover:bg-neutral-800 transition">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                <button class="px-4 py-1.5 rounded-full bg-neutral-800/40 border border-neutral-700/30 text-neutral-400 text-sm font-semibold hover:text-white transition cursor-default">
+                    Alexa
                 </button>
-                <button @click="${this._showSettings}" class="p-2 rounded-full text-neutral-400 hover:text-white hover:bg-neutral-800 transition">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                <button @click="${this._showSettings}" class="px-4 py-1.5 rounded-full bg-purple-600 text-white text-sm font-semibold shadow-[0_0_12px_rgba(168,85,247,0.4)] transition">
+                    Marcus
                 </button>
             </div>
           </div>
 
-          <!-- MAIN CARD (ORB & CONTROLS) -->
+          <!-- TIMER CARD -->
           <div class="bg-gradient-to-b from-neutral-800/80 to-neutral-900/80 backdrop-blur-xl rounded-3xl p-5 sm:p-6 border border-neutral-700/30 shadow-[0_8px_30px_rgba(0,0,0,0.2)] relative overflow-hidden flex flex-row items-center gap-6">
-            
-            ${isActive ? html`<div class="absolute -top-16 -left-16 w-64 h-64 rounded-full blur-[80px] opacity-20 pointer-events-none transition-colors duration-1000 ${workMode === 'office' ? 'bg-blue-500' : 'bg-purple-500'}"></div>` : ''}
-
-            <!-- LEFT: ORB BUTTON -->
-            <button 
-              @click="${this._manualToggle}"
-              class="relative w-40 h-40 flex-shrink-0 flex items-center justify-center rounded-full transition-all duration-300 hover:scale-[1.02] active:scale-95 focus:outline-none group z-10"
-            >
-              ${isActive ? html`<div class="absolute inset-1.5 rounded-full animate-ping opacity-[0.15] ${workMode === 'office' ? 'bg-blue-400' : 'bg-purple-400'}"></div>` : ''}
-              <div class="absolute inset-3 bg-neutral-900/80 rounded-full shadow-inner border border-white/5"></div>
-
-              ${isActive ? html`
-              <svg class="absolute inset-0 w-full h-full transform -rotate-90 drop-shadow-xl z-20" viewBox="0 0 160 160" style="pointer-events: none;">
-                <defs>
-                  <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur stdDeviation="3" result="blur" />
-                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                  </filter>
-                </defs>
-                <circle cx="80" cy="80" r="${radius}" class="stroke-neutral-800" stroke-width="10" fill="transparent" />
-                <circle
-                  cx="80" cy="80" r="${radius}"
-                  class="transition-all duration-1000 ease-out ${isOvertime ? 'stroke-amber-400' : (workMode === 'office' ? 'stroke-blue-500' : 'stroke-purple-500')}"
-                  stroke-width="10" stroke-linecap="round" fill="transparent" stroke-dasharray="${circumference}" stroke-dashoffset="${strokeDashoffset}"
-                  filter="url(#glow)"
-                />
-              </svg>
-              ` : html`
-              <svg class="absolute inset-0 w-full h-full transform -rotate-90 drop-shadow-xl z-20" viewBox="0 0 160 160" style="pointer-events: none;">
-                <circle cx="80" cy="80" r="${radius}" class="stroke-neutral-800" stroke-width="10" fill="transparent" />
-                <circle
-                  cx="80" cy="80" r="${radius}"
-                  class="transition-all duration-1000 ease-out stroke-neutral-600"
-                  stroke-width="10" stroke-linecap="round" fill="transparent" stroke-dasharray="${circumference}" stroke-dashoffset="${strokeDashoffset}"
-                />
-              </svg>
-              `}
-
-              <div class="absolute flex flex-col items-center justify-center text-center mt-1.5 z-30">
-                <div class="mb-1 transition-colors duration-300 ${isActive ? (workMode === 'office' ? 'text-blue-400' : 'text-purple-400') : 'text-neutral-500 group-hover:text-purple-400'}">
-                   ${isActive ? html`<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>` : html`<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>`}
-                </div>
-                <span class="text-2xl font-light tracking-tighter mb-0.5 font-mono transition-colors duration-300 ${isActive ? 'text-white' : 'text-neutral-300'}">
-                  ${this.formatTime(timeWorked)}
-                </span>
-                <div class="text-[10px] font-medium text-neutral-500 uppercase tracking-widest">
-                  Soll: ${this.formatShortTime(targetTime)}
-                </div>
-              </div>
-            </button>
-
-            <!-- RIGHT: CONTROLS & STATS -->
-            <div class="flex-1 w-full flex flex-col justify-center gap-3.5 z-10">
-              
-              ${switchEntity ? html`
-              <div class="relative flex w-full bg-neutral-900/80 rounded-xl p-1 border border-neutral-700/50 shadow-inner">
-                <div class="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg transition-all duration-300 ease-out shadow-sm ${workMode === 'office' ? 'translate-x-[calc(100%+4px)] bg-blue-500/20 border border-blue-500/30' : 'translate-x-0 bg-purple-500/20 border border-purple-500/30'
-        } ${!isActive ? 'opacity-50 grayscale' : ''}"></div>
-
+            <!-- Ambient Glow -->
+            <div class="absolute -top-16 -left-16 w-64 h-64 rounded-full blur-[80px] opacity-20 pointer-events-none transition-colors duration-1000 ${modeGlowBg}"></div>
+                
+                <!-- ORB -->
                 <button 
-                  @click="${() => this._handleModeChange('home')}"
-                  class="flex-1 relative z-10 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition-colors ${workMode === 'home' ? (isActive ? 'text-purple-300' : 'text-neutral-300') : 'text-neutral-500 hover:text-neutral-300'
-        }"
+                  @click="${this._manualToggle}"
+                  class="relative w-36 h-36 flex-shrink-0 flex items-center justify-center rounded-full transition-all duration-300 hover:scale-[1.02] active:scale-95 focus:outline-none group z-10"
                 >
-                  Home
-                </button>
-                <button 
-                  @click="${() => this._handleModeChange('office')}"
-                  class="flex-1 relative z-10 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition-colors ${workMode === 'office' ? (isActive ? 'text-blue-300' : 'text-neutral-300') : 'text-neutral-500 hover:text-neutral-300'
-        }"
-                >
-                  Büro
-                </button>
-              </div>
-              ` : ''}
+                  <div class="absolute inset-0 bg-[#13161f] rounded-full shadow-inner border border-neutral-700/30"></div>
 
-              <!-- MONTHLY SUMMARY -->
-              <div class="mt-2 flex flex-col gap-3 px-1">
-                <div class="flex justify-between items-end">
-                  <div>
-                    <div class="text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-0.5">
-                      Monat
+                  ${isActive ? html`<div class="absolute inset-1.5 rounded-full animate-ping opacity-[0.15] ${modeGlowBgActive}"></div>` : ''}
+
+                  ${isActive ? html`
+                  <svg class="absolute inset-0 w-full h-full transform -rotate-90 drop-shadow-xl z-20" viewBox="0 0 160 160" style="pointer-events: none;">
+                    <defs>
+                      <filter id="glowTimer" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="4" result="blur" />
+                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                      </filter>
+                    </defs>
+                    <circle cx="80" cy="80" r="${radius}" class="stroke-neutral-800" stroke-width="8" fill="transparent" />
+                    <circle
+                      cx="80" cy="80" r="${radius}"
+                      class="transition-all duration-1000 ease-out ${modeStrokeClass}"
+                      stroke-width="8" stroke-linecap="round" fill="transparent" stroke-dasharray="${circumference}" stroke-dashoffset="${strokeDashoffset}"
+                      filter="url(#glowTimer)"
+                    />
+                  </svg>
+
+                  ` : html`
+                  <svg class="absolute inset-0 w-full h-full transform -rotate-90 drop-shadow-xl z-20" viewBox="0 0 160 160" style="pointer-events: none;">
+                    <circle cx="80" cy="80" r="${radius}" class="stroke-neutral-800" stroke-width="8" fill="transparent" />
+                    <circle
+                      cx="80" cy="80" r="${radius}"
+                      class="transition-all duration-1000 ease-out stroke-[#444455]"
+                      stroke-width="8" stroke-linecap="round" fill="transparent" stroke-dasharray="${circumference}" stroke-dashoffset="${strokeDashoffset}"
+                    />
+                  </svg>
+                  `}
+
+                  <div class="absolute flex flex-col items-center justify-center text-center mt-1 z-30">
+                    <div class="mb-1 transition-colors duration-300 ${isActive ? (workMode === 'home' ? 'text-purple-400' : 'text-blue-400') : 'text-neutral-400 group-hover:text-purple-400'}">
+                       ${isActive ? html`<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>` : html`<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>`}
                     </div>
-                    <div class="flex items-baseline gap-1.5">
-                      <span class="text-xl font-light text-white font-mono">${dynamicMonthlyStats.ist.toFixed(1)}h</span>
-                      <span class="text-xs font-medium text-neutral-500">/ ${dynamicMonthlyStats.soll.toFixed(1)}h</span>
+                    <span class="text-2xl font-light mb-0.5 font-mono transition-colors duration-300 ${isActive ? 'text-white' : 'text-neutral-300'}">
+                      ${this.formatTime(timeWorked)}
+                    </span>
+                    <div class="text-[10px] font-bold text-neutral-500 uppercase tracking-wider mt-0.5">
+                      Soll: ${Math.floor(targetTime / 3600)}h ${(targetTime % 3600) / 60}m
                     </div>
                   </div>
-                  <div class="flex items-center justify-center px-2 py-1 rounded-lg text-xs font-bold ${dynamicMonthlyStats.saldo >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-      }">
-                    ${dynamicMonthlyStats.saldo > 0 ? '+' : ''}${dynamicMonthlyStats.saldo.toFixed(1)}h
-                  </div>
+                </button>
+
+                <!-- RIGHT SIDE (MODE & STATS) -->
+                <div class="flex flex-col flex-1 h-36 relative w-full pt-1">
+                    
+                    ${switchEntity ? html`
+                    <div class="relative flex w-full bg-neutral-900/80 rounded-xl p-1 border border-neutral-700/50 shadow-inner">
+                        <button 
+                        @click="${() => this._handleModeChange('home')}"
+                        class="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-lg transition-all ${workMode === 'home' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/30' : 'text-neutral-500 hover:text-neutral-400 border border-transparent'}"
+                        >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                            Home
+                        </button>
+                        <button 
+                        @click="${() => this._handleModeChange('office')}"
+                        class="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-lg transition-all ${workMode === 'office' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30' : 'text-neutral-500 hover:text-neutral-400 border border-transparent'}"
+                        >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>
+                            Büro
+                        </button>
+                    </div>
+                    ` : ''}
+
+                    <div class="mt-auto pb-4">
+                        <div class="text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">
+                            Monat (${monthShortName})
+                        </div>
+                        <div class="flex justify-between items-end mb-2">
+                            <div class="flex items-baseline gap-1">
+                                <span class="text-2xl font-light text-white font-mono">${dynamicMonthlyStats.ist.toFixed(1)}h</span>
+                                <span class="text-[11px] font-medium text-neutral-500">/ ${dynamicMonthlyStats.soll.toFixed(1)}h</span>
+                            </div>
+                            <div class="flex items-center justify-center px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wide ${dynamicMonthlyStats.saldo >= 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}">
+                                ${dynamicMonthlyStats.saldo > 0 ? '+' : ''}${dynamicMonthlyStats.saldo.toFixed(1)}h
+                            </div>
+                        </div>
+                        <div class="w-full h-1 bg-neutral-800 rounded-full overflow-hidden">
+                            <div 
+                                class="h-full rounded-full transition-all duration-1000 ${workMode === 'home' ? 'bg-purple-500' : 'bg-blue-500'}"
+                                style="width: ${Math.min((dynamicMonthlyStats.ist / Math.max(dynamicMonthlyStats.soll, 1)) * 100, 100)}%"
+                            ></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="w-full h-1.5 bg-neutral-900/80 rounded-full overflow-hidden shadow-inner border border-neutral-700/30">
-                  <div 
-                    class="h-full rounded-full transition-all duration-1000 ${isActive ? (workMode === 'office' ? 'bg-blue-400' : 'bg-purple-400') : 'bg-neutral-500'}"
-                    style="width: ${Math.min((dynamicMonthlyStats.ist / Math.max(dynamicMonthlyStats.soll, 1)) * 100, 100)}%"
-                  ></div>
+          </div>
+
+          <!-- WEEKLY OVERVIEW -->
+          <div class="bg-neutral-800/50 rounded-3xl p-6 border border-purple-500/10 hover:border-purple-500/20 transition-colors">
+            <div class="flex justify-between items-center mb-6">
+                <div class="flex items-center gap-2">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" class="text-purple-400" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                    <h2 class="text-base font-semibold text-white tracking-wide">Wochenübersicht</h2>
                 </div>
-              </div>
+                <div class="px-2.5 py-1 rounded-md bg-[#2a1a3e] border border-purple-500/20 text-purple-300 text-[10px] font-bold tracking-widest font-mono">
+                    ${weekWorked.toFixed(1)} / ${weekTarget.toFixed(1)}h
+                </div>
+            </div>
+
+            <div class="flex justify-between items-end h-28 gap-2 mt-6">
+                ${weekDaysInfo.map(day => {
+      const isWeekend = day.type === 'weekend';
+      const targetH = day.target;
+      const workedH = day.duration;
+      const isCurrentDay = day.label === ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'][new Date().getDay()];
+
+      let barHtml = '';
+      if (isWeekend || targetH === 0) {
+        barHtml = html`<div class="relative w-full h-20 bg-neutral-800 rounded-lg border border-neutral-700/30 group"></div>`;
+      } else {
+        const heightPct = Math.min((workedH / Math.max(targetH, 1)) * 100, 100);
+        const borderCls = isCurrentDay ? 'border-neutral-500/50' : 'border-neutral-700/30';
+        // Farb-Logik: Büro = blue, Home = purple (hier vereinfacht als home-modus im mock)
+        const barColor = workMode === 'home' ? 'bg-purple-500' : 'bg-blue-500';
+        barHtml = html`
+                        <div class="relative w-full flex flex-col justify-end h-20 bg-neutral-800 rounded-lg border ${borderCls} group">
+                            <div class="w-full ${barColor} rounded-lg transition-all duration-1000 ease-out" style="height: ${heightPct}%"></div>
+                            <div class="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-neutral-900 text-xs px-2 py-1 rounded border border-neutral-600 whitespace-nowrap text-white font-mono z-10">
+                                ${workedH.toFixed(1)}h
+                            </div>
+                        </div>
+                       `;
+      }
+
+      return html`
+                    <div class="flex flex-col items-center gap-2 flex-1 h-full">
+                        <div class="w-full flex-1 flex flex-col justify-end">
+                            ${barHtml}
+                        </div>
+                        <span class="text-[11px] font-semibold ${isCurrentDay ? 'text-white' : 'text-neutral-500'}">${day.label}</span>
+                    </div>
+                   `;
+    })}
             </div>
           </div>
 
           <!-- CALENDAR -->
-          <div class="calendar mt-6 bg-gradient-to-b from-neutral-800/80 to-neutral-900/80 backdrop-blur-xl rounded-2xl border border-neutral-700/30 p-4">
-            <div class="cal-nav flex justify-between items-center mb-4">
+          <div class="calendar bg-neutral-800/50 rounded-3xl p-6 border border-purple-500/10 hover:border-purple-500/20 transition-colors">
+            <div class="cal-nav flex justify-between items-center mb-6 px-2">
               <button class="nav-btn p-2 hover:bg-neutral-800 rounded-full transition-colors text-white" @click=${() => this.changeMonth(-1)}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
               </button>
@@ -387,9 +453,9 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
               </button>
             </div>
-            <div class="cal-grid grid grid-cols-7 gap-1">
-              ${["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].map(d => html`<div class="cal-hdr text-center text-xs font-bold text-neutral-500 mb-2">${d}</div>`)}
-              ${this.renderCalendarDays(this._currentMonth)}
+            <div class="cal-grid grid grid-cols-7 gap-1.5 sm:gap-2">
+              ${["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].map(d => html`<div class="cal-hdr text-center text-[10px] font-bold text-neutral-500 mb-2">${d}</div>`)}
+              ${this.renderCalendarDays(this._currentMonth, workMode)}
             </div>
           </div>
 
@@ -401,7 +467,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     `;
   }
 
-  renderCalendarDays(date) {
+  renderCalendarDays(date, workMode) {
     const days = [];
     const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
     const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
@@ -410,39 +476,59 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     let startOffset = firstDay.getDay() - 1;
     if (startOffset === -1) startOffset = 6;
 
-    for (let i = 0; i < startOffset; i++) days.push(html`<div class="cal-empty aspect-square"></div>`);
+    for (let i = 0; i < startOffset; i++) days.push(html`<div class="cal-empty aspect-square rounded-xl opacity-0 cursor-default"></div>`);
 
     for (let i = 1; i <= lastDay.getDate(); i++) {
       const dStr = formatDateLocal(new Date(date.getFullYear(), date.getMonth(), i));
       const dd = this._data[dStr];
       const isToday = dStr === today;
-      const isWork = dd?.type === 'work' || !dd?.type;
       const target = dd?.target || 0;
       const duration = dd?.duration || 0;
 
-      let bgCls = "bg-white/5 hover:bg-white/10";
-      let borderCls = isToday ? "border-2 border-primary" : "border border-transparent";
-
+      let bgCls = "bg-neutral-800/40 hover:bg-neutral-700/80";
+      // Heute: modus-abhängige Rand-Farbe
+      let borderCls = "border border-neutral-700/30";
       if (isToday) {
-        bgCls = "bg-indigo-500/10";
-        borderCls = "border-2 border-indigo-500";
+        borderCls = workMode === 'home'
+          ? "border border-purple-500/80 bg-purple-500/10 shadow-[0_0_15px_rgba(168,85,247,0.15)]"
+          : "border border-blue-500/80 bg-blue-500/10 shadow-[0_0_15px_rgba(59,130,246,0.15)]";
       }
 
-      let timeColor = "text-neutral-400";
-      if (duration > 0) {
-        timeColor = duration >= target ? "text-emerald-400" : "text-rose-400";
+      let dayTextSize = "text-sm";
+      let dayFontWeight = "font-bold";
+
+      let dayColor = "text-neutral-400";
+      let subColor = "text-neutral-500";
+      let subText = "";
+
+      // FARB-LOGIK (Dominanz-Regel)
+      if (dd?.type === 'sick') {
+        // Krank überschreibt alles
+        dayColor = "text-rose-400";
+        subColor = "text-rose-500";
+        subText = "Krank";
+      } else if (dd?.type === 'vacation') {
+        // Urlaub überschreibt Arbeitszeit
+        dayColor = "text-amber-400";
+        subColor = "text-amber-500";
+        subText = "Urlaub";
+      } else if (duration > 0) {
+        // Arbeitstag mit Stunden
+        subText = (duration / 3600).toFixed(1) + "h";
+        // Dominanz-Regel: mehr Büro -> blue, mehr Home -> purple
+        dayColor = workMode === 'home' ? "text-purple-400" : "text-blue-400";
+        subColor = workMode === 'home' ? "text-purple-400" : "text-blue-400";
+      } else if (target > 0) {
+        // Arbeitstag ohne Stunden
+        subText = (target / 3600).toFixed(1) + "h";
       }
 
       days.push(html`
-          <div class="cal-cell aspect-square flex flex-col items-center justify-center rounded-xl cursor-pointer transition-all ${bgCls} ${borderCls}" @click=${() => this.openDayDetail(dStr, dd)}>
-            <span class="text-sm font-bold ${timeColor}">${i}</span>
-            ${dd?.duration > 0 || (dd?.type && dd?.type !== 'work') ? html`
-              <span class="text-[10px] font-semibold ${timeColor}">
-                ${dd?.type === 'vacation' ? html`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m2 22 20-20"/><path d="m14 22 8-8"/><path d="M4 12a8 8 0 0 0 8 8"/><path d="M8 8a8 8 0 0 0 8 8"/></svg>` :
-            dd?.type === 'sick' ? html`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>` :
-              ((dd?.duration || 0) / 3600).toFixed(1) + 'h'}
-              </span>
-            ` : ""}
+          <div class="cal-cell aspect-square flex flex-col items-center justify-center rounded-xl cursor-pointer transition-colors ${bgCls} ${borderCls}" @click=${() => this.openDayDetail(dStr, dd)}>
+            <span class="${dayTextSize} ${dayFontWeight} ${dayColor}">${i}</span>
+            ${subText ? html`<span class="text-[10px] font-bold tracking-wider ${subColor} mt-0.5">
+              ${subText}
+            </span>` : ''}
           </div>
         `);
     }
@@ -450,7 +536,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     const totalCells = days.length;
     const remaining = 42 - totalCells;
     for (let i = 0; i < remaining; i++) {
-      days.push(html`<div class="cal-empty aspect-square"></div>`);
+      days.push(html`<div class="cal-empty aspect-square rounded-xl opacity-0 cursor-default"></div>`);
     }
 
     return days;
@@ -468,76 +554,113 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     const targetH = ((dd?.target || 0) / 3600).toFixed(1);
 
     return html`
-      <div class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[1000] p-4" @click=${this.closeDayDetail}>
-        <div class="bg-neutral-900 border border-neutral-700/50 p-6 rounded-3xl w-full max-w-sm shadow-2xl" @click=${e => e.stopPropagation()}>
-          <div class="flex justify-between items-center mb-6">
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-md transition-all" @click=${this.closeDayDetail}>
+        <div class="bg-[#1a1f2b] border border-neutral-700/50 rounded-[2rem] w-full max-w-sm shadow-2xl overflow-hidden flex flex-col" @click=${e => e.stopPropagation()}>
+          
+          <!-- Header -->
+          <div class="px-6 pt-6 pb-4 flex justify-between items-center relative">
             <h3 class="text-lg font-bold text-white">${fmtDate(this._detailDate)}</h3>
-            <button class="text-neutral-400 hover:text-white transition" @click=${this.closeDayDetail}>
+            <button class="p-2 rounded-full text-neutral-400 hover:text-white hover:bg-neutral-800 transition" @click=${this.closeDayDetail}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
             </button>
           </div>
 
-          <div class="mb-6">
-            <div class="text-[10px] text-neutral-500 uppercase font-bold tracking-wider mb-3">Aufgezeichnete Zeiten</div>
+          <!-- Body -->
+          <div class="px-6 py-2 overflow-y-auto max-h-[60vh] custom-scrollbar">
+            
+            <div class="text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-2">Typ</div>
+            <div class="relative flex w-full bg-neutral-900/80 rounded-xl p-1 border border-neutral-700/50 shadow-inner mb-4">
+                <button @click=${() => { this._editType = 'work'; this._autoSave(); }} class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${this._editType === 'work' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30' : 'text-neutral-500 hover:text-neutral-400 border border-transparent'}">
+                    Arbeit
+                </button>
+                <button @click=${() => { this._editType = 'vacation'; this._autoSave(); }} class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${this._editType === 'vacation' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30' : 'text-neutral-500 hover:text-neutral-400 border border-transparent'}">
+                    Urlaub
+                </button>
+                <button @click=${() => { this._editType = 'sick'; this._autoSave(); }} class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${this._editType === 'sick' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30' : 'text-neutral-500 hover:text-neutral-400 border border-transparent'}">
+                    Krank
+                </button>
+            </div>
+
+            <div class="text-[10px] font-bold text-neutral-500 uppercase tracking-wider mt-4 mb-2">Aufgezeichnete Zeiten</div>
+            
             <div class="flex flex-col gap-2">
               ${sessions.map((s, i) => html`
-                <div class="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-xl">
-                  <span class="text-[10px] text-indigo-400 font-bold w-4">#${i + 1}</span>
-                  <div class="flex items-center gap-1 flex-1">
-                      <input type="time" class="bg-neutral-900 border border-neutral-700 text-white rounded-lg p-1 text-sm w-[72px]" .value=${new Date(s.start).toTimeString().slice(0, 5)} @change=${e => { s.start = `${this._detailDate}T${e.target.value}:00`; this.requestUpdate(); this._autoSave(); }}>
-                      <span class="text-neutral-500">—</span>
-                      <input type="time" class="bg-neutral-900 border border-neutral-700 text-white rounded-lg p-1 text-sm w-[72px]" .value=${new Date(s.end).toTimeString().slice(0, 5)} @change=${e => { s.end = `${this._detailDate}T${e.target.value}:00`; this.requestUpdate(); this._autoSave(); }}>
+                <div class="flex items-center gap-2 p-1.5 bg-[#13161f] border border-neutral-800 rounded-xl shadow-inner">
+                  
+                  <!-- Zeiteingabe-Block (Pille) -->
+                  <div class="flex-1 flex items-center justify-center gap-1.5 bg-[#13161f] rounded-xl border border-neutral-800 p-1 shadow-inner">
+                      <input type="time" class="bg-transparent text-white font-mono text-sm text-center outline-none min-w-[80px] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute" .value=${new Date(s.start).toTimeString().slice(0, 5)} @change=${e => { s.start = `${this._detailDate}T${e.target.value}:00`; this.requestUpdate(); this._autoSave(); }}>
+                      <span class="text-neutral-500 text-xs">—</span>
+                      <input type="time" class="bg-transparent text-white font-mono text-sm text-center outline-none min-w-[80px] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute" .value=${new Date(s.end).toTimeString().slice(0, 5)} @change=${e => { s.end = `${this._detailDate}T${e.target.value}:00`; this.requestUpdate(); this._autoSave(); }}>
                   </div>
-                  <select class="bg-transparent border-none text-white text-sm cursor-pointer outline-none" .value=${s.location || 'office'} @change=${e => { s.location = e.target.value; this.requestUpdate(); this._autoSave(); }}>
-                    <option class="bg-neutral-800" value="office">Office</option>
-                    <option class="bg-neutral-800" value="home">Home</option>
-                  </select>
-                  <button class="text-rose-400 p-1 hover:bg-rose-500/20 rounded-lg transition" @click=${() => this.deleteSession(i)}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                  
+                  <!-- Location Segmented Control -->
+                  <div class="flex bg-neutral-900/80 rounded-lg p-0.5 border border-neutral-700/50 shadow-inner">
+                    <button @click=${() => { s.location = 'office'; this.requestUpdate(); this._autoSave(); }} class="px-2 py-1 text-[10px] font-semibold rounded-md transition-all ${(s.location || 'office') === 'office' ? 'bg-blue-500/10 text-blue-400' : 'text-neutral-500 hover:text-neutral-400'}">
+                      Büro
+                    </button>
+                    <button @click=${() => { s.location = 'home'; this.requestUpdate(); this._autoSave(); }} class="px-2 py-1 text-[10px] font-semibold rounded-md transition-all ${(s.location || 'office') === 'home' ? 'bg-purple-500/10 text-purple-400' : 'text-neutral-500 hover:text-neutral-400'}">
+                      Home
+                    </button>
+                  </div>
+                  
+                  <button class="text-rose-400 p-1.5 hover:bg-rose-500/20 rounded-lg transition" @click=${() => this.deleteSession(i)}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                   </button>
                 </div>
               `)}
               ${sessions.length === 0 && !this._addFormOpen ? html`<div class="text-neutral-500 text-sm text-center py-4">Keine Einträge</div>` : ""}
               
               ${this._addFormOpen ? html`
-                <div class="flex items-center gap-2 p-3 bg-indigo-500/10 border border-indigo-500/30 rounded-xl mt-2">
-                    <input type="time" class="bg-neutral-900 border border-neutral-700 text-white rounded-lg p-1 text-sm w-[72px]" id="new-start" value="08:00">
-                    <span class="text-neutral-500">—</span>
-                    <input type="time" class="bg-neutral-900 border border-neutral-700 text-white rounded-lg p-1 text-sm w-[72px]" id="new-end" value="16:00">
-                    <select id="new-loc" class="bg-neutral-900 border border-neutral-700 text-white rounded-lg p-1 text-sm"><option value="office">Office</option><option value="home">Home</option></select>
-                    <button class="text-emerald-400 p-1 hover:bg-emerald-500/20 rounded-lg transition ml-auto" @click=${() => this.addSession(this.querySelector('#new-start').value, this.querySelector('#new-end').value, this.querySelector('#new-loc').value)}>
-                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+                <div class="flex items-center gap-2 p-1.5 bg-emerald-500/5 border border-emerald-500/20 rounded-xl mt-2 shadow-inner">
+                    <div class="flex-1 flex items-center justify-center gap-1.5 bg-[#13161f] rounded-xl border border-neutral-800 p-1 shadow-inner">
+                        <input type="time" class="bg-transparent text-white font-mono text-sm text-center outline-none min-w-[80px] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute" id="new-start" value="08:00">
+                        <span class="text-neutral-500 text-xs">—</span>
+                        <input type="time" class="bg-transparent text-white font-mono text-sm text-center outline-none min-w-[80px] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute" id="new-end" value="16:00">
+                    </div>
+                    <div class="flex bg-neutral-900/80 rounded-lg p-0.5 border border-neutral-700/50 shadow-inner">
+                      <button class="px-2 py-1 text-[10px] font-semibold rounded-md bg-blue-500/10 text-blue-400" id="new-loc-office" @click=${e => { e.target.closest('div').querySelector('#new-loc-home')?.classList.remove('bg-purple-500/10', 'text-purple-400'); e.target.closest('div').querySelector('#new-loc-home')?.classList.add('text-neutral-500'); e.target.classList.add('bg-blue-500/10', 'text-blue-400'); e.target.classList.remove('text-neutral-500'); }}>
+                        Büro
+                      </button>
+                      <button class="px-2 py-1 text-[10px] font-semibold rounded-md text-neutral-500" id="new-loc-home" @click=${e => { e.target.closest('div').querySelector('#new-loc-office')?.classList.remove('bg-blue-500/10', 'text-blue-400'); e.target.closest('div').querySelector('#new-loc-office')?.classList.add('text-neutral-500'); e.target.classList.add('bg-purple-500/10', 'text-purple-400'); e.target.classList.remove('text-neutral-500'); }}>
+                        Home
+                      </button>
+                    </div>
+                    <button class="text-emerald-400 p-1.5 hover:bg-emerald-500/20 rounded-lg transition" @click=${() => { const loc = this.renderRoot.querySelector('#new-loc-home')?.classList.contains('text-purple-400') ? 'home' : 'office'; this.addSession(this.renderRoot.querySelector('#new-start').value, this.renderRoot.querySelector('#new-end').value, loc); }}>
+                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
                     </button>
                 </div>
               ` : html`
-                <button class="w-full border border-dashed border-neutral-700 text-neutral-400 p-2 rounded-xl text-sm font-semibold hover:text-white hover:border-indigo-400 transition flex items-center justify-center gap-2 mt-2" @click=${() => this._addFormOpen = true}>
+                <button class="w-full border border-dashed border-neutral-700/50 text-neutral-400 p-3 rounded-xl text-sm font-semibold hover:text-white hover:border-neutral-500 hover:bg-neutral-800/30 transition flex items-center justify-center gap-2 mt-2" @click=${() => this._addFormOpen = true}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
                     Eintrag hinzufügen
                 </button>
               `}
             </div>
-
-            <div class="border-t border-neutral-700/50 mt-6 pt-5 flex flex-col gap-3">
-              <div class="flex justify-between items-center text-sm">
-                 <span class="text-neutral-400">Arbeitszeit</span>
-                 <span class="font-bold text-white">${totalH}h</span>
-              </div>
-              <div class="flex justify-between items-center text-sm">
-                 <span class="text-neutral-400">Soll</span>
-                 <span class="font-bold text-white">${targetH}h</span>
-              </div>
-              <div class="flex justify-between items-center text-sm mt-2">
-                <span class="text-neutral-400">Typ</span>
-                <select class="bg-neutral-800 border border-neutral-700 text-white rounded-lg px-3 py-1.5 text-sm font-semibold outline-none" .value=${this._editType} @change=${e => { this._editType = e.target.value; this._autoSave(); }}>
-                    <option value="work">Arbeit</option>
-                    <option value="vacation">Urlaub</option>
-                    <option value="sick">Krank</option>
-                </select>
-              </div>
-            </div>
+            
+            <!-- Spacing inside body before footer -->
+            <div class="h-6"></div>
           </div>
 
+          <!-- Footer -->
+          <div class="p-6 bg-[#151923] border-t border-neutral-800/80">
+              <div class="flex justify-center items-center gap-6 mb-6">
+                 <div class="flex flex-col items-end">
+                     <span class="text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-0.5">Arbeitszeit</span>
+                     <span class="text-2xl font-light text-white font-mono">${totalH}h</span>
+                 </div>
+                 <div class="h-8 w-px bg-neutral-800"></div>
+                 <div class="flex flex-col items-start">
+                     <span class="text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-0.5">Soll</span>
+                     <span class="text-2xl font-light text-neutral-400 font-mono">${targetH}h</span>
+                 </div>
+              </div>
+              
+              <button class="w-full bg-[#222226] text-white rounded-xl py-3 text-sm font-semibold hover:bg-[#2a2a2e] transition" @click=${this.closeDayDetail}>
+                  Schließen
+              </button>
           </div>
+
         </div>
       </div>
     `;

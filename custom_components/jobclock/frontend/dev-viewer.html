@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JobClock Dev Viewer</title>
+    <!-- Important: We use shadow DOM, but font loading or base html styles might be needed -->
+    <style>
+        body {
+            background-color: #111111;
+            margin: 0;
+            padding: 20px;
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Target element for our panel -->
+    <jobclock-card></jobclock-card>
+
+    <script type="module">
+        // Mock Home Assistant `hass` API for the panel
+        class MockPanel extends HTMLElement { }
+        customElements.define("ha-panel-lovelace", MockPanel);
+
+        const mockHass = {
+            states: {
+                "sensor.jobclock_person_marcus": {
+                    state: "12:00",
+                    attributes: {
+                        is_working: true,
+                        session_start: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
+                        target_hours: 8,
+                        worked_today: 0,
+                        worked_week: 40,
+                        target_week: 40,
+                        worked_month: 56,
+                        target_month: 160,
+                        overtime_month: -88,
+                        days: "{}",
+                        sessions_today: "[]",
+                        switch_entity: "input_boolean.jobclock_office_mode"
+                    }
+                },
+                "input_boolean.jobclock_office_mode": {
+                    state: "off" // office mode
+                }
+            },
+            callWS: async (msg) => {
+                console.log(`Called WS`, msg);
+                if (msg.type === 'jobclock/get_data') {
+                    // Start of month
+                    const d = new Date();
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    return [
+                        { date: `${y}-${m}-02`, duration: 0, target: 28800, type: "vacation" },
+                        { date: `${y}-${m}-03`, duration: 0, target: 28800, type: "sick" },
+                        { date: `${y}-${m}-04`, duration: 28800, target: 28800, type: "work" },
+                        { date: `${y}-${m}-05`, duration: 28800, target: 28800, type: "work" },
+                        { date: `${y}-${m}-16`, duration: 28800, target: 28800, type: "work" },
+                        { date: `${y}-${m}-17`, duration: 28800, target: 28800, type: "work" },
+                        { date: `${y}-${m}-18`, duration: 28800, target: 28800, type: "work" },
+                        { date: `${y}-${m}-19`, duration: 28800, target: 28800, type: "work" },
+                        { date: `${y}-${m}-20`, duration: 28800, target: 28800, type: "work" },
+                    ];
+                }
+                return [];
+            },
+            callService: async (domain, service, data) => {
+                console.log(`Called service ${domain}.${service}`, data);
+            }
+        };
+
+        // Load the bundled card from the www folder
+        import("../www/jobclock-card.js").then(() => {
+            const card = document.querySelector('jobclock-card');
+            card.setConfig({ entity: "sensor.jobclock_person_marcus" });
+            card.hass = mockHass;
+        }).catch(err => console.error("Error loading bundled card:", err));
+    </script>
+</body>
+
+</html>
