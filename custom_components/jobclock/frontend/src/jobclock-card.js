@@ -271,8 +271,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     const modeStrokeClass = workMode === 'home' ? 'stroke-purple-500' : 'stroke-blue-500';
 
     return html`
-      <div class="min-h-screen bg-neutral-900 text-neutral-100 p-4 font-sans flex justify-center selection:bg-purple-500/30">
-        <div class="w-full max-w-md space-y-4">
+      <div class="w-full max-w-md mx-auto space-y-4 font-sans text-neutral-100 selection:bg-purple-500/30">
           
           <!-- HEADER -->
           <div class="flex justify-between items-center mb-6">
@@ -383,9 +382,9 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
                                 ${dynamicMonthlyStats.saldo > 0 ? '+' : ''}${dynamicMonthlyStats.saldo.toFixed(1)}h
                             </div>
                         </div>
-                        <div class="w-full h-1 bg-neutral-800 rounded-full overflow-hidden">
+                        <div class="w-full h-1.5 bg-neutral-900/80 rounded-full overflow-hidden shadow-inner border border-neutral-700/30">
                             <div 
-                                class="h-full rounded-full transition-all duration-1000 ${workMode === 'home' ? 'bg-purple-500' : 'bg-blue-500'}"
+                                class="h-full rounded-full transition-all duration-1000 ${workMode === 'home' ? 'bg-purple-400' : 'bg-blue-400'}"
                                 style="width: ${Math.min((dynamicMonthlyStats.ist / Math.max(dynamicMonthlyStats.soll, 1)) * 100, 100)}%"
                             ></div>
                         </div>
@@ -414,15 +413,14 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
 
       let barHtml = '';
       if (isWeekend || targetH === 0) {
-        barHtml = html`<div class="relative w-full h-20 bg-neutral-800 rounded-lg border border-neutral-700/30 group"></div>`;
+        barHtml = html`<div class="relative w-full h-20 bg-neutral-800 rounded-lg border border-neutral-700/30 overflow-hidden group"></div>`;
       } else {
         const heightPct = Math.min((workedH / Math.max(targetH, 1)) * 100, 100);
         const borderCls = isCurrentDay ? 'border-neutral-500/50' : 'border-neutral-700/30';
-        // Farb-Logik: Büro = blue, Home = purple (hier vereinfacht als home-modus im mock)
         const barColor = workMode === 'home' ? 'bg-purple-500' : 'bg-blue-500';
         barHtml = html`
-                        <div class="relative w-full flex flex-col justify-end h-20 bg-neutral-800 rounded-lg border ${borderCls} group">
-                            <div class="w-full ${barColor} rounded-lg transition-all duration-1000 ease-out" style="height: ${heightPct}%"></div>
+                        <div class="relative w-full flex flex-col justify-end h-20 bg-neutral-800 rounded-lg border ${borderCls} overflow-hidden group">
+                            <div class="w-full ${barColor} rounded-b-lg transition-all duration-1000 ease-out" style="height: ${heightPct}%"></div>
                             <div class="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-neutral-900 text-xs px-2 py-1 rounded border border-neutral-600 whitespace-nowrap text-white font-mono z-10">
                                 ${workedH.toFixed(1)}h
                             </div>
@@ -459,8 +457,6 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
             </div>
           </div>
 
-        </div>
-        
         ${this._detailOpen ? this._renderDayDetail() : ""}
 
       </div>
@@ -569,66 +565,76 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
           <div class="px-6 py-2 overflow-y-auto max-h-[60vh] custom-scrollbar">
             
             <div class="text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-2">Typ</div>
-            <div class="relative flex w-full bg-neutral-900/80 rounded-xl p-1 border border-neutral-700/50 shadow-inner mb-4">
-                <button @click=${() => { this._editType = 'work'; this._autoSave(); }} class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${this._editType === 'work' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30' : 'text-neutral-500 hover:text-neutral-400 border border-transparent'}">
+            <div class="relative flex w-full bg-[#13161f] rounded-xl p-1 border border-neutral-800 shadow-inner mb-4">
+                <button @click=${() => { this._editType = 'work'; this._autoSave(); }} class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${this._editType === 'work' ? 'bg-purple-500/15 text-purple-300 border border-purple-500/20 shadow-sm' : 'text-neutral-500 hover:text-neutral-400 border border-transparent'}">
                     Arbeit
                 </button>
-                <button @click=${() => { this._editType = 'vacation'; this._autoSave(); }} class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${this._editType === 'vacation' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30' : 'text-neutral-500 hover:text-neutral-400 border border-transparent'}">
+                <button @click=${() => { this._editType = 'vacation'; this._autoSave(); }} class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${this._editType === 'vacation' ? 'bg-amber-500/15 text-amber-300 border border-amber-500/20 shadow-sm' : 'text-neutral-500 hover:text-neutral-400 border border-transparent'}">
                     Urlaub
                 </button>
-                <button @click=${() => { this._editType = 'sick'; this._autoSave(); }} class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${this._editType === 'sick' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30' : 'text-neutral-500 hover:text-neutral-400 border border-transparent'}">
+                <button @click=${() => { this._editType = 'sick'; this._autoSave(); }} class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${this._editType === 'sick' ? 'bg-rose-500/15 text-rose-300 border border-rose-500/20 shadow-sm' : 'text-neutral-500 hover:text-neutral-400 border border-transparent'}">
                     Krank
                 </button>
             </div>
 
+            ${this._editType === 'work' ? html`
             <div class="text-[10px] font-bold text-neutral-500 uppercase tracking-wider mt-4 mb-2">Aufgezeichnete Zeiten</div>
             
             <div class="flex flex-col gap-2">
               ${sessions.map((s, i) => html`
-                <div class="flex items-center gap-2 p-1.5 bg-[#13161f] border border-neutral-800 rounded-xl shadow-inner">
+                <div class="relative flex items-center gap-2 sm:gap-3 p-2 bg-neutral-800/40 border border-neutral-700/50 rounded-2xl group transition-all">
                   
-                  <!-- Zeiteingabe-Block (Pille) -->
-                  <div class="flex-1 flex items-center justify-center gap-1.5 bg-[#13161f] rounded-xl border border-neutral-800 p-1 shadow-inner">
-                      <input type="time" class="bg-transparent text-white font-mono text-sm text-center outline-none min-w-[80px] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute" .value=${new Date(s.start).toTimeString().slice(0, 5)} @change=${e => { s.start = `${this._detailDate}T${e.target.value}:00`; this.requestUpdate(); this._autoSave(); }}>
-                      <span class="text-neutral-500 text-xs">—</span>
-                      <input type="time" class="bg-transparent text-white font-mono text-sm text-center outline-none min-w-[80px] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute" .value=${new Date(s.end).toTimeString().slice(0, 5)} @change=${e => { s.end = `${this._detailDate}T${e.target.value}:00`; this.requestUpdate(); this._autoSave(); }}>
+                  <!-- Modus Button (Links als großes Icon Quadrat) -->
+                  <button @click=${() => { s.location = (s.location || 'office') === 'home' ? 'office' : 'home'; this.requestUpdate(); this._autoSave(); }}
+                          class="relative w-12 h-12 flex-shrink-0 flex items-center justify-center rounded-xl transition-all ${s.location === 'home' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}">
+                    ${s.location === 'home' ? html`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>` : html`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>`}
+                  </button>
+                  
+                  <!-- Zeit-Pille (Mitte) -->
+                  <div class="flex-1 flex items-center bg-[#13161f] rounded-xl border border-neutral-800 p-1 shadow-inner">
+                    <div class="flex-1 flex flex-col items-center justify-center relative">
+                      <span class="text-[8px] uppercase tracking-widest text-neutral-500 font-bold mb-0.5">Von</span>
+                      <input type="time" class="w-full bg-transparent text-white font-mono text-sm text-center outline-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full" 
+                             .value=${new Date(s.start).toTimeString().slice(0, 5)} 
+                             @change=${(e) => { s.start = `${this._detailDate}T${e.target.value}:00`; this.requestUpdate(); this._autoSave(); }}>
+                    </div>
+                    <div class="w-px h-8 bg-neutral-800 mx-1"></div>
+                    <div class="flex-1 flex flex-col items-center justify-center relative">
+                      <span class="text-[8px] uppercase tracking-widest text-neutral-500 font-bold mb-0.5">Bis</span>
+                      <input type="time" class="w-full bg-transparent text-white font-mono text-sm text-center outline-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full" 
+                             .value=${new Date(s.end).toTimeString().slice(0, 5)} 
+                             @change=${(e) => { s.end = `${this._detailDate}T${e.target.value}:00`; this.requestUpdate(); this._autoSave(); }}>
+                    </div>
                   </div>
-                  
-                  <!-- Location Segmented Control -->
-                  <div class="flex bg-neutral-900/80 rounded-lg p-0.5 border border-neutral-700/50 shadow-inner">
-                    <button @click=${() => { s.location = 'office'; this.requestUpdate(); this._autoSave(); }} class="px-2 py-1 text-[10px] font-semibold rounded-md transition-all ${(s.location || 'office') === 'office' ? 'bg-blue-500/10 text-blue-400' : 'text-neutral-500 hover:text-neutral-400'}">
-                      Büro
-                    </button>
-                    <button @click=${() => { s.location = 'home'; this.requestUpdate(); this._autoSave(); }} class="px-2 py-1 text-[10px] font-semibold rounded-md transition-all ${(s.location || 'office') === 'home' ? 'bg-purple-500/10 text-purple-400' : 'text-neutral-500 hover:text-neutral-400'}">
-                      Home
-                    </button>
-                  </div>
-                  
-                  <button class="text-rose-400 p-1.5 hover:bg-rose-500/20 rounded-lg transition" @click=${() => this.deleteSession(i)}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+
+                  <!-- Löschen Button (Rechts) -->
+                  <button class="w-10 h-10 flex-shrink-0 flex items-center justify-center text-neutral-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors"
+                          @click=${() => this.deleteSession(i)}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                   </button>
                 </div>
               `)}
               ${sessions.length === 0 && !this._addFormOpen ? html`<div class="text-neutral-500 text-sm text-center py-4">Keine Einträge</div>` : ""}
               
               ${this._addFormOpen ? html`
-                <div class="flex items-center gap-2 p-1.5 bg-emerald-500/5 border border-emerald-500/20 rounded-xl mt-2 shadow-inner">
-                    <div class="flex-1 flex items-center justify-center gap-1.5 bg-[#13161f] rounded-xl border border-neutral-800 p-1 shadow-inner">
-                        <input type="time" class="bg-transparent text-white font-mono text-sm text-center outline-none min-w-[80px] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute" id="new-start" value="08:00">
-                        <span class="text-neutral-500 text-xs">—</span>
-                        <input type="time" class="bg-transparent text-white font-mono text-sm text-center outline-none min-w-[80px] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute" id="new-end" value="16:00">
+                <div class="relative flex items-center gap-2 sm:gap-3 p-2 bg-emerald-500/5 border border-emerald-500/20 rounded-2xl mt-2">
+                  <button class="relative w-12 h-12 flex-shrink-0 flex items-center justify-center rounded-xl transition-all bg-blue-500/10 text-blue-400 border border-blue-500/20" id="new-loc-btn" @click=${(e) => { const btn = e.currentTarget; const isHome = btn.dataset.loc === 'home'; btn.dataset.loc = isHome ? 'office' : 'home'; this.requestUpdate(); }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>
+                  </button>
+                  <div class="flex-1 flex items-center bg-[#13161f] rounded-xl border border-neutral-800 p-1 shadow-inner">
+                    <div class="flex-1 flex flex-col items-center justify-center relative">
+                      <span class="text-[8px] uppercase tracking-widest text-neutral-500 font-bold mb-0.5">Von</span>
+                      <input type="time" class="w-full bg-transparent text-white font-mono text-sm text-center outline-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0" id="new-start" value="08:00">
                     </div>
-                    <div class="flex bg-neutral-900/80 rounded-lg p-0.5 border border-neutral-700/50 shadow-inner">
-                      <button class="px-2 py-1 text-[10px] font-semibold rounded-md bg-blue-500/10 text-blue-400" id="new-loc-office" @click=${e => { e.target.closest('div').querySelector('#new-loc-home')?.classList.remove('bg-purple-500/10', 'text-purple-400'); e.target.closest('div').querySelector('#new-loc-home')?.classList.add('text-neutral-500'); e.target.classList.add('bg-blue-500/10', 'text-blue-400'); e.target.classList.remove('text-neutral-500'); }}>
-                        Büro
-                      </button>
-                      <button class="px-2 py-1 text-[10px] font-semibold rounded-md text-neutral-500" id="new-loc-home" @click=${e => { e.target.closest('div').querySelector('#new-loc-office')?.classList.remove('bg-blue-500/10', 'text-blue-400'); e.target.closest('div').querySelector('#new-loc-office')?.classList.add('text-neutral-500'); e.target.classList.add('bg-purple-500/10', 'text-purple-400'); e.target.classList.remove('text-neutral-500'); }}>
-                        Home
-                      </button>
+                    <div class="w-px h-8 bg-neutral-800 mx-1"></div>
+                    <div class="flex-1 flex flex-col items-center justify-center relative">
+                      <span class="text-[8px] uppercase tracking-widest text-neutral-500 font-bold mb-0.5">Bis</span>
+                      <input type="time" class="w-full bg-transparent text-white font-mono text-sm text-center outline-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0" id="new-end" value="16:00">
                     </div>
-                    <button class="text-emerald-400 p-1.5 hover:bg-emerald-500/20 rounded-lg transition" @click=${() => { const loc = this.renderRoot.querySelector('#new-loc-home')?.classList.contains('text-purple-400') ? 'home' : 'office'; this.addSession(this.renderRoot.querySelector('#new-start').value, this.renderRoot.querySelector('#new-end').value, loc); }}>
-                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
-                    </button>
+                  </div>
+                  <button class="w-10 h-10 flex-shrink-0 flex items-center justify-center text-emerald-400 hover:bg-emerald-500/10 rounded-xl transition-colors" @click=${() => { const locBtn = this.renderRoot.querySelector('#new-loc-btn'); const loc = locBtn?.dataset.loc === 'home' ? 'home' : 'office'; this.addSession(this.renderRoot.querySelector('#new-start').value, this.renderRoot.querySelector('#new-end').value, loc); }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+                  </button>
                 </div>
               ` : html`
                 <button class="w-full border border-dashed border-neutral-700/50 text-neutral-400 p-3 rounded-xl text-sm font-semibold hover:text-white hover:border-neutral-500 hover:bg-neutral-800/30 transition flex items-center justify-center gap-2 mt-2" @click=${() => this._addFormOpen = true}>
@@ -637,6 +643,14 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
                 </button>
               `}
             </div>
+            ` : html`
+            <div class="py-8 mt-6 text-center flex flex-col items-center justify-center opacity-70 border border-dashed border-neutral-800 rounded-xl">
+                <p class="text-xs text-neutral-400">
+                    Der Tag ist als <strong class="${this._editType === 'vacation' ? 'text-amber-400' : 'text-rose-400'}">${this._editType === 'vacation' ? 'Urlaub' : 'Krank'}</strong> markiert. <br/>
+                    Sollzeit für diesen Tag ist 0h.
+                </p>
+            </div>
+            `}
             
             <!-- Spacing inside body before footer -->
             <div class="h-6"></div>
@@ -656,8 +670,8 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
                  </div>
               </div>
               
-              <button class="w-full bg-[#222226] text-white rounded-xl py-3 text-sm font-semibold hover:bg-[#2a2a2e] transition" @click=${this.closeDayDetail}>
-                  Schließen
+              <button class="w-full rounded-xl py-3.5 text-sm font-bold text-white transition-all shadow-[0_4px_20px_rgba(0,0,0,0.2)] ${this._editType === 'work' ? 'bg-purple-600 hover:bg-purple-500 shadow-[0_4px_20px_rgba(147,51,234,0.3)]' : this._editType === 'vacation' ? 'bg-amber-600 hover:bg-amber-500 shadow-[0_4px_20px_rgba(217,119,6,0.3)]' : 'bg-rose-600 hover:bg-rose-500 shadow-[0_4px_20px_rgba(225,29,72,0.3)]'}" @click=${this.closeDayDetail}>
+                  Speichern
               </button>
           </div>
 
