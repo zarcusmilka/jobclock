@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JobClock Panel Dev Viewer</title>
+    <script type="importmap">
+    {
+      "imports": {
+        "/jobclock_static/jobclock-card.js?v=2.1.3": "../www/jobclock-card.js"
+      }
+    }
+    </script>
+    <style>
+        body {
+            background-color: #0f172a;
+            margin: 0;
+            font-family: sans-serif;
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <jobclock-panel></jobclock-panel>
+
+    <script type="module">
+        // Mock Lit elements if needed by ha-menu-button, though ha-menu-button is an external HA element.
+        // We will mock ha-menu-button so it renders something locally
+        class MockMenuButton extends HTMLElement {
+            connectedCallback() {
+                this.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" class="text-gray-400"><path d="M3 12h18M3 6h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+                this.style.cursor = 'pointer';
+                this.style.display = 'flex';
+                this.style.alignItems = 'center';
+                this.style.justifyContent = 'center';
+            }
+        }
+        customElements.define("ha-menu-button", MockMenuButton);
+
+        // Define mock Panel object
+        const mockPanel = {
+            config: {
+                title: "JobClock"
+            }
+        };
+
+        const mockHass = {
+            states: {
+                "sensor.jobclock_person_user1": {
+                    state: "12:00",
+                    attributes: {
+                        is_working: true,
+                        session_start: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
+                        target_hours: 8,
+                        worked_today: 0,
+                        worked_week: 40,
+                        target_week: 40,
+                        target_month: 160,
+                        days: "{}",
+                        sessions_today: "[]",
+                        switch_entity: "input_boolean.jobclock_home"
+                    }
+                },
+                "input_boolean.jobclock_home": { state: "on" }
+            },
+            callWS: async (msg) => {
+                if (msg.type === 'jobclock/get_instances') {
+                    return [{ id: "user1", name: "User 1", entity_id: "sensor.jobclock_person_user1" }];
+                }
+                if (msg.type === 'jobclock/get_data') {
+                    return [];
+                }
+                return [];
+            },
+            callService: async (domain, service, data) => {
+                console.log(`Called Service: ${domain}.${service}`, data);
+            }
+        };
+
+        import '../www/jobclock-panel.js';
+
+        const panel = document.querySelector('jobclock-panel');
+        panel.panel = mockPanel;
+        panel.hass = mockHass;
+        panel.narrow = false;
+
+        setInterval(() => {
+            panel.requestUpdate();
+        }, 1000);
+    </script>
+</body>
+</html>

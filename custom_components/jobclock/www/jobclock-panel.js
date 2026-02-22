@@ -3,7 +3,7 @@ const LitElement = Object.getPrototypeOf(customElements.get("ha-panel-lovelace")
 const html = LitElement.prototype.html;
 const css = LitElement.prototype.css;
 
-import "/jobclock_static/jobclock-card.js?v=2.1.3";
+import "/jobclock_static/jobclock-card.js?v=2.1.4";
 
 class JobClockPanel extends LitElement {
   static get properties() {
@@ -71,7 +71,7 @@ class JobClockPanel extends LitElement {
           <div class="card-wrapper">
             <!-- Header with HA menu button -->
             <div class="integrated-header">
-              <div class="header-top">
+              <div class="header-left-group">
                 <ha-menu-button .hass=${this.hass} .narrow=${this.narrow}></ha-menu-button>
                 <div class="header-left">
                   <div class="title-row">
@@ -154,11 +154,11 @@ class JobClockPanel extends LitElement {
       /* Integrated header */
       .integrated-header {
         display: flex;
-        flex-direction: column;
-        gap: 12px;
+        align-items: center;
+        justify-content: space-between;
         margin-bottom: 24px;
       }
-      .header-top {
+      .header-left-group {
         display: flex;
         align-items: center;
         gap: 4px;
@@ -228,9 +228,9 @@ class JobClockPanel extends LitElement {
         font-size: 1.125rem;
       }
       
-      @media (max-width: 600px) {
+      @media (max-width: 480px) {
         .main-content { padding: 12px 8px; }
-        .integrated-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+        .integrated-header { flex-wrap: wrap; gap: 12px; }
         .tabs { gap: 6px; }
         .tab { padding: 4px 14px; font-size: 0.8rem; }
       }
