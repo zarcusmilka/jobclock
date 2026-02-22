@@ -253,6 +253,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     // Weekly Overview Logic – computed from this._data
     const dayLabels = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
     const today = new Date();
+    const todayKey = formatDateLocal(today);
     // Get Monday of current week
     const dayOfWeek = today.getDay(); // 0=So, 1=Mo, ...
     const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
@@ -270,27 +271,46 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
       const dayData = this._data[key];
       const dow = d.getDay(); // 0=So, 6=Sa
       const isWeekend = dow === 0 || dow === 6;
+      const isToday = key === todayKey;
 
       let duration = 0;
       let target = 0;
       let type = isWeekend ? 'weekend' : 'work';
+      let offHours = 0; // Büro
+      let hmHours = 0;  // Home-Office
 
       if (dayData) {
-        duration = (dayData.duration || 0) / 3600; // seconds → hours
+        duration = (dayData.duration || 0) / 3600;
         target = (dayData.target || 0) / 3600;
         if (dayData.type) type = dayData.type === 'weekend' ? 'weekend' : dayData.type;
+
+        // Split sessions by location
+        const sessions = dayData.sessions || [];
+        sessions.forEach(s => {
+          const dur = (s.duration || 0) / 3600;
+          if (s.location === 'home') hmHours += dur;
+          else offHours += dur;
+        });
+        // If no sessions but duration exists, use current workMode
+        if (sessions.length === 0 && duration > 0) {
+          if (workMode === 'home') hmHours = duration;
+          else offHours = duration;
+        }
       } else if (!isWeekend) {
-        target = 8; // default 8h target for workdays without data
+        target = 8;
       }
 
-      // Add current session to today's entry
-      if (key === formatDateLocal(today) && isWorking && currentSessionDuration > 0) {
-        duration += currentSessionDuration / 3600;
+      // Add current session to today
+      if (isToday && isWorking && currentSessionDuration > 0) {
+        const liveDur = currentSessionDuration / 3600;
+        duration += liveDur;
+        if (workMode === 'home') hmHours += liveDur;
+        else offHours += liveDur;
       }
 
       weekWorked += duration;
       weekTarget += target;
-      weekDaysInfo.push({ label: dayLabels[d.getDay()], duration, target, type });
+      weekDaysInfo.push({ label: dayLabels[d.getDay()], duration, target, type, offHours, hmHours, isToday });
     }
 
     // Modus-abhängige Farben
@@ -419,55 +439,56 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
                 </div>
             </div>
 
-            <div class="flex justify-between items-end h-28 gap-2 mt-6">
+            <div class="flex justify-between items-end gap-2 mt-6">
                 ${weekDaysInfo.map(day => {
         const isWeekend = day.type === 'weekend';
-        const targetH = day.target;
-        const workedH = day.duration;
-        const isCurrentDay = day.label === ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'][new Date().getDay()];
-
         const isSick = day.type === 'sick';
         const isVacation = day.type === 'vacation';
+        const isToday = day.isToday;
+        const totalHours = day.offHours + day.hmHours;
+        const borderCls = isToday ? 'border-neutral-500/50' : 'border-neutral-700/30';
 
-        let barHtml = '';
-        if ((isWeekend || targetH === 0) && !isSick && !isVacation && workedH === 0) {
-          barHtml = html`<div class="relative w-full h-20 bg-neutral-800 rounded-lg border border-neutral-700/30 overflow-hidden group"></div>`;
-        } else {
-          const heightPct = (isSick || isVacation) ? 100 : Math.min((workedH / Math.max(targetH, 1)) * 100, 100);
-          const borderCls = isCurrentDay ? 'border-neutral-500/50' : 'border-neutral-700/30';
-
-          let barColor = workMode === 'home' ? 'bg-purple-500' : 'bg-blue-500';
-          let textColor = 'text-white';
-          let labelText = workedH.toFixed(1) + 'h';
-
-          if (isSick) {
-            barColor = 'bg-rose-500';
-            textColor = 'text-rose-100';
-            labelText = 'Krank';
-          } else if (isVacation) {
-            barColor = 'bg-amber-500';
-            textColor = 'text-amber-100';
-            labelText = 'Urlaub';
-          }
-
-          barHtml = html`
-                        <div class="relative w-full flex flex-col justify-end h-20 bg-neutral-800 rounded-lg border ${borderCls} overflow-hidden group">
-                            <div class="w-full ${barColor} rounded-b-lg transition-all duration-1000 ease-out" style="height: ${heightPct}%"></div>
-                            <div class="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-neutral-900 text-xs px-2 py-1 rounded border border-neutral-600 whitespace-nowrap ${textColor} font-mono z-10">
-                                ${labelText}
-                            </div>
-                        </div>
-                       `;
+        // Krank oder Urlaub: voller einfarbiger Balken
+        if (isSick || isVacation) {
+          const barColor = isSick ? 'bg-rose-500' : 'bg-amber-500';
+          const labelText = isSick ? 'Krank' : 'Urlaub';
+          return html`
+            <div class="flex flex-col items-center flex-1 group">
+              <div class="relative w-full flex flex-col justify-end h-20 bg-neutral-800 rounded-lg border ${borderCls} overflow-hidden">
+                <div class="w-full ${barColor} rounded-lg transition-all duration-500 ${isToday ? 'opacity-100 shadow-[0_0_10px_rgba(225,29,72,0.3)]' : 'opacity-70'}" style="height: 100%"></div>
+                <div class="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-neutral-900 text-xs px-2 py-1 rounded border border-neutral-600 pointer-events-none transition-opacity z-20 whitespace-nowrap text-white font-mono">${labelText}</div>
+              </div>
+              <span class="text-xs mt-2 font-medium ${isToday ? 'text-white' : 'text-neutral-500'}">${day.label}</span>
+            </div>`;
         }
 
+        // Wochenende ohne Arbeit: leerer Balken
+        if ((isWeekend || day.target === 0) && totalHours === 0) {
+          return html`
+            <div class="flex flex-col items-center flex-1 group">
+              <div class="relative w-full h-20 bg-neutral-800 rounded-lg border border-neutral-700/30 overflow-hidden"></div>
+              <span class="text-xs mt-2 font-medium ${isToday ? 'text-white' : 'text-neutral-500'}">${day.label}</span>
+            </div>`;
+        }
+
+        // Normale Arbeitstage: gestapelte Balken
+        const targetHours = day.target > 0 ? day.target : 8;
+        const offPercent = Math.min((day.offHours / targetHours) * 100, 100);
+        const hmPercent = Math.min((day.hmHours / targetHours) * 100, 100 - offPercent);
+
         return html`
-                    <div class="flex flex-col items-center gap-2 flex-1 h-full">
-                        <div class="w-full flex-1 flex flex-col justify-end">
-                            ${barHtml}
-                        </div>
-                        <span class="text-[11px] font-semibold ${isCurrentDay ? 'text-white' : 'text-neutral-500'}">${day.label}</span>
-                    </div>
-                   `;
+          <div class="flex flex-col items-center flex-1 group">
+            <div class="relative w-full flex flex-col justify-end h-20 bg-neutral-800 rounded-lg border ${borderCls} overflow-hidden">
+              ${day.hmHours > 0 ? html`
+                <div class="w-full transition-all duration-500 bg-purple-500 ${day.offHours === 0 ? 'rounded-lg' : 'rounded-t-lg'} ${isToday ? 'opacity-100 shadow-[0_0_10px_rgba(168,85,247,0.3)]' : 'opacity-70'}" style="height: ${hmPercent}%"></div>
+              ` : ''}
+              ${day.offHours > 0 ? html`
+                <div class="w-full transition-all duration-500 bg-blue-500 ${day.hmHours === 0 ? 'rounded-lg' : 'rounded-b-lg'} ${isToday ? 'opacity-100 shadow-[0_0_10px_rgba(59,130,246,0.3)]' : 'opacity-70'}" style="height: ${offPercent}%"></div>
+              ` : ''}
+              <div class="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-neutral-900 text-xs px-2 py-1 rounded border border-neutral-600 pointer-events-none transition-opacity z-20 whitespace-nowrap text-white font-mono">${totalHours.toFixed(1)}h</div>
+            </div>
+            <span class="text-xs mt-2 font-medium ${isToday ? 'text-white' : 'text-neutral-500'}">${day.label}</span>
+          </div>`;
       })}
             </div>
           </div>
