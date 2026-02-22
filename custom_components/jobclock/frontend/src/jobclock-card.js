@@ -660,14 +660,14 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
                   <div class="flex-1 flex items-center bg-[#13161f] rounded-xl border border-neutral-800 p-1 shadow-inner">
                     <div class="flex-1 flex flex-col items-center justify-center relative">
                       <span class="text-[8px] uppercase tracking-widest text-neutral-500 font-bold mb-0.5">Von</span>
-                      <input type="time" class="w-full bg-transparent text-white font-mono text-sm text-center outline-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full" 
+                      <input type="time" class="w-full bg-transparent text-white font-mono text-sm text-center outline-none appearance-none px-0 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-inner-spin-button]:hidden [&::-webkit-clear-button]:hidden" 
                              .value=${new Date(s.start).toTimeString().slice(0, 5)} 
                              @change=${(e) => { s.start = `${this._detailDate}T${e.target.value}:00`; this.requestUpdate(); this._autoSave(); }}>
                     </div>
                     <div class="w-px h-8 bg-neutral-800 mx-1"></div>
                     <div class="flex-1 flex flex-col items-center justify-center relative">
                       <span class="text-[8px] uppercase tracking-widest text-neutral-500 font-bold mb-0.5">Bis</span>
-                      <input type="time" class="w-full bg-transparent text-white font-mono text-sm text-center outline-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full" 
+                      <input type="time" class="w-full bg-transparent text-white font-mono text-sm text-center outline-none appearance-none px-0 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-inner-spin-button]:hidden [&::-webkit-clear-button]:hidden" 
                              .value=${new Date(s.end).toTimeString().slice(0, 5)} 
                              @change=${(e) => { s.end = `${this._detailDate}T${e.target.value}:00`; this.requestUpdate(); this._autoSave(); }}>
                     </div>

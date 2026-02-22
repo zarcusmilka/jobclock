@@ -1,3 +1,35 @@
 @import "tailwindcss";
 
-/* JobClock Custom Overrides if needed */
+/* JobClock Custom Overrides */
+
+/* Force-center time inputs by removing native browser chrome */
+input[type="time"] {
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+  text-align: center;
+  padding: 0;
+}
+input[type="time"]::-webkit-datetime-edit {
+  text-align: center;
+  padding: 0;
+}
+input[type="time"]::-webkit-datetime-edit-fields-wrapper {
+  padding: 0;
+}
+input[type="time"]::-webkit-datetime-edit-text,
+input[type="time"]::-webkit-datetime-edit-hour-field,
+input[type="time"]::-webkit-datetime-edit-minute-field {
+  padding: 0;
+}
+input[type="time"]::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+input[type="time"]::-webkit-inner-spin-button,
+input[type="time"]::-webkit-clear-button {
+  display: none;
+}
