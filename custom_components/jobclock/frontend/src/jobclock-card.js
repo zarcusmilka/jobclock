@@ -426,18 +426,35 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
         const workedH = day.duration;
         const isCurrentDay = day.label === ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'][new Date().getDay()];
 
+        const isSick = day.type === 'sick';
+        const isVacation = day.type === 'vacation';
+
         let barHtml = '';
-        if (isWeekend || targetH === 0) {
+        if ((isWeekend || targetH === 0) && !isSick && !isVacation && workedH === 0) {
           barHtml = html`<div class="relative w-full h-20 bg-neutral-800 rounded-lg border border-neutral-700/30 overflow-hidden group"></div>`;
         } else {
-          const heightPct = Math.min((workedH / Math.max(targetH, 1)) * 100, 100);
+          const heightPct = (isSick || isVacation) ? 100 : Math.min((workedH / Math.max(targetH, 1)) * 100, 100);
           const borderCls = isCurrentDay ? 'border-neutral-500/50' : 'border-neutral-700/30';
-          const barColor = workMode === 'home' ? 'bg-purple-500' : 'bg-blue-500';
+
+          let barColor = workMode === 'home' ? 'bg-purple-500' : 'bg-blue-500';
+          let textColor = 'text-white';
+          let labelText = workedH.toFixed(1) + 'h';
+
+          if (isSick) {
+            barColor = 'bg-rose-500';
+            textColor = 'text-rose-100';
+            labelText = 'Krank';
+          } else if (isVacation) {
+            barColor = 'bg-amber-500';
+            textColor = 'text-amber-100';
+            labelText = 'Urlaub';
+          }
+
           barHtml = html`
                         <div class="relative w-full flex flex-col justify-end h-20 bg-neutral-800 rounded-lg border ${borderCls} overflow-hidden group">
                             <div class="w-full ${barColor} rounded-b-lg transition-all duration-1000 ease-out" style="height: ${heightPct}%"></div>
-                            <div class="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-neutral-900 text-xs px-2 py-1 rounded border border-neutral-600 whitespace-nowrap text-white font-mono z-10">
-                                ${workedH.toFixed(1)}h
+                            <div class="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-neutral-900 text-xs px-2 py-1 rounded border border-neutral-600 whitespace-nowrap ${textColor} font-mono z-10">
+                                ${labelText}
                             </div>
                         </div>
                        `;
