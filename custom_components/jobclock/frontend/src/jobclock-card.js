@@ -291,10 +291,9 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
           if (s.location === 'home') hmHours += dur;
           else offHours += dur;
         });
-        // If no sessions but duration exists, use current workMode
+        // If no sessions but duration exists (fallback for old data), assume Office
         if (sessions.length === 0 && duration > 0) {
-          if (workMode === 'home') hmHours = duration;
-          else offHours = duration;
+          offHours = duration;
         }
       } else if (!isWeekend) {
         target = 8;
