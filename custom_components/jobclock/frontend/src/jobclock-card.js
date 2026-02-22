@@ -292,7 +292,8 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
           else offHours += dur;
         });
         // If no sessions but duration exists (fallback for old data), assume Office
-        if (sessions.length === 0 && duration > 0) {
+        // Only apply this for actual work days, not sick/vacation
+        if (sessions.length === 0 && duration > 0 && type !== 'sick' && type !== 'vacation') {
           offHours = duration;
         }
       } else if (!isWeekend) {
