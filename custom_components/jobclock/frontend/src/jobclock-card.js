@@ -250,19 +250,48 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     const monthShortName = this._currentMonth.toLocaleDateString("de-DE", { month: "short" }).toUpperCase();
     const monthName = this._currentMonth.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
 
-    // Weekly Overview Logic (Mock data for UI matching)
-    // We'll need a way to get the week's data, for now we will stub it to match the visual
-    const weekWorked = 40.0;
-    const weekTarget = 40.0;
-    const weekDaysInfo = [
-      { label: "Mo", duration: 8, target: 8, type: "work" },
-      { label: "Di", duration: 6, target: 8, type: "work" },
-      { label: "Mi", duration: 4, target: 8, type: "work" },
-      { label: "Do", duration: 8, target: 8, type: "work" },
-      { label: "Fr", duration: 8, target: 8, type: "work" },
-      { label: "Sa", duration: 0, target: 0, type: "weekend" },
-      { label: "So", duration: 0, target: 0, type: "weekend" },
-    ];
+    // Weekly Overview Logic – computed from this._data
+    const dayLabels = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+    const today = new Date();
+    // Get Monday of current week
+    const dayOfWeek = today.getDay(); // 0=So, 1=Mo, ...
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + mondayOffset);
+    monday.setHours(0, 0, 0, 0);
+
+    const weekDaysInfo = [];
+    let weekWorked = 0;
+    let weekTarget = 0;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      const key = formatDateLocal(d);
+      const dayData = this._data[key];
+      const dow = d.getDay(); // 0=So, 6=Sa
+      const isWeekend = dow === 0 || dow === 6;
+
+      let duration = 0;
+      let target = 0;
+      let type = isWeekend ? 'weekend' : 'work';
+
+      if (dayData) {
+        duration = (dayData.duration || 0) / 3600; // seconds → hours
+        target = (dayData.target || 0) / 3600;
+        if (dayData.type) type = dayData.type === 'weekend' ? 'weekend' : dayData.type;
+      } else if (!isWeekend) {
+        target = 8; // default 8h target for workdays without data
+      }
+
+      // Add current session to today's entry
+      if (key === formatDateLocal(today) && isWorking && currentSessionDuration > 0) {
+        duration += currentSessionDuration / 3600;
+      }
+
+      weekWorked += duration;
+      weekTarget += target;
+      weekDaysInfo.push({ label: dayLabels[d.getDay()], duration, target, type });
+    }
 
     // Modus-abhängige Farben
     const modeColor = workMode === 'home' ? 'purple' : 'blue';

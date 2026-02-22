@@ -3,7 +3,7 @@ const LitElement = Object.getPrototypeOf(customElements.get("ha-panel-lovelace")
 const html = LitElement.prototype.html;
 const css = LitElement.prototype.css;
 
-import "/jobclock_static/jobclock-card.js?v=2.1.2";
+import "/jobclock_static/jobclock-card.js?v=2.1.3";
 
 class JobClockPanel extends LitElement {
   static get properties() {
@@ -69,17 +69,20 @@ class JobClockPanel extends LitElement {
       <div class="panel-root">
         <div class="main-content">
           <div class="card-wrapper">
-            <!-- Integrated header matching card design -->
+            <!-- Header with HA menu button -->
             <div class="integrated-header">
-              <div class="header-left">
-                <div class="title-row">
-                  <h1 class="title">JobClock</h1>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="pin-icon">
-                    <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
-                    <circle cx="12" cy="10" r="3"/>
-                  </svg>
+              <div class="header-top">
+                <ha-menu-button .hass=${this.hass} .narrow=${this.narrow}></ha-menu-button>
+                <div class="header-left">
+                  <div class="title-row">
+                    <h1 class="title">JobClock</h1>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="pin-icon">
+                      <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
+                      <circle cx="12" cy="10" r="3"/>
+                    </svg>
+                  </div>
+                  <p class="date">Heute, ${this._todayFormatted}</p>
                 </div>
-                <p class="date">Heute, ${this._todayFormatted}</p>
               </div>
               ${this._instances.length > 1 ? html`
                 <div class="tabs">
@@ -145,15 +148,25 @@ class JobClockPanel extends LitElement {
       }
       .card-wrapper {
         width: 100%;
-        max-width: 800px;
+        max-width: 36rem;
       }
 
       /* Integrated header */
       .integrated-header {
         display: flex;
-        justify-content: space-between;
-        align-items: center;
+        flex-direction: column;
+        gap: 12px;
         margin-bottom: 24px;
+      }
+      .header-top {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      ha-menu-button {
+        color: #9ca3af;
+        --mdc-icon-size: 24px;
+        margin-left: -8px;
       }
       .header-left {
         display: flex;
