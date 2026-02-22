@@ -28,7 +28,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
       _editorOpen: { type: Boolean },
       _editSessions: { type: Array },
       _editType: { type: String },
-      _addFormOpen: { type: Boolean },
+
     };
   }
 
@@ -38,7 +38,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     this._currentMonth = new Date();
     this._detailOpen = false;
     this._editorOpen = false;
-    this._addFormOpen = false;
+
     this._editSessions = [];
     this._editType = "work";
   }
@@ -90,7 +90,7 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     this._editType = this._detailData.type || "work";
     this._detailOpen = true;
     this._editorOpen = true; // Always open in edit mode
-    this._addFormOpen = false;
+
   }
 
   closeDayDetail() {
@@ -150,13 +150,12 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
     }
 
     const dur = (end.getTime() - start.getTime()) / 1000;
-    this._editSessions.push({
+    this._editSessions = [...this._editSessions, {
       start: start.toISOString(),
       end: end.toISOString(),
       duration: dur,
       location: location || "office"
-    });
-    this._addFormOpen = false;
+    }];
     this.requestUpdate();
     this._autoSave();
   }
@@ -681,34 +680,12 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
                   </button>
                 </div>
               `)}
-              ${sessions.length === 0 && !this._addFormOpen ? html`<div class="text-neutral-500 text-sm text-center py-4">Keine Einträge</div>` : ""}
+              ${sessions.length === 0 ? html`<div class="text-neutral-500 text-sm text-center py-4">Keine Einträge</div>` : ""}
               
-              ${this._addFormOpen ? html`
-                <div class="relative flex items-center gap-2 sm:gap-3 p-2 bg-emerald-500/5 border border-emerald-500/20 rounded-2xl mt-2">
-                  <button class="relative w-12 h-12 flex-shrink-0 flex items-center justify-center rounded-xl transition-all bg-blue-500/10 text-blue-400 border border-blue-500/20" id="new-loc-btn" @click=${(e) => { const btn = e.currentTarget; const isHome = btn.dataset.loc === 'home'; btn.dataset.loc = isHome ? 'office' : 'home'; this.requestUpdate(); }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>
-                  </button>
-                  <div class="flex-1 flex items-center bg-[#13161f] rounded-xl border border-neutral-800 p-1 shadow-inner">
-                    <div class="flex-1 flex flex-col items-center justify-center relative">
-                      <span class="text-[8px] uppercase tracking-widest text-neutral-500 font-bold mb-0.5">Von</span>
-                      <input type="time" class="w-full bg-transparent text-white font-mono text-sm text-center outline-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0" id="new-start" value="08:00">
-                    </div>
-                    <div class="w-px h-8 bg-neutral-800 mx-1"></div>
-                    <div class="flex-1 flex flex-col items-center justify-center relative">
-                      <span class="text-[8px] uppercase tracking-widest text-neutral-500 font-bold mb-0.5">Bis</span>
-                      <input type="time" class="w-full bg-transparent text-white font-mono text-sm text-center outline-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0" id="new-end" value="16:00">
-                    </div>
-                  </div>
-                  <button class="w-10 h-10 flex-shrink-0 flex items-center justify-center text-emerald-400 hover:bg-emerald-500/10 rounded-xl transition-colors" @click=${() => { const locBtn = this.renderRoot.querySelector('#new-loc-btn'); const loc = locBtn?.dataset.loc === 'home' ? 'home' : 'office'; this.addSession(this.renderRoot.querySelector('#new-start').value, this.renderRoot.querySelector('#new-end').value, loc); }}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
-                  </button>
-                </div>
-              ` : html`
-                <button class="w-full border border-dashed border-neutral-700/50 text-neutral-400 p-3 rounded-xl text-sm font-semibold hover:text-white hover:border-neutral-500 hover:bg-neutral-800/30 transition flex items-center justify-center gap-2 mt-2" @click=${() => this._addFormOpen = true}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                    Eintrag hinzufügen
-                </button>
-              `}
+              <button class="w-full border border-dashed border-neutral-700/50 text-neutral-400 p-3 rounded-xl text-sm font-semibold hover:text-white hover:border-neutral-500 hover:bg-neutral-800/30 transition flex items-center justify-center gap-2 mt-2" @click=${() => this.addSession('08:00', '16:00', 'office')}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                  Eintrag hinzufügen
+              </button>
             </div>
             ` : html`
             <div class="py-8 mt-6 text-center flex flex-col items-center justify-center opacity-70 border border-dashed border-neutral-800 rounded-xl">
