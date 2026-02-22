@@ -534,11 +534,26 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
       const target = dd?.target || 0;
       const duration = dd?.duration || 0;
 
+      // Calculate dominant work mode from sessions
+      let offHours = 0;
+      let hmHours = 0;
+      if (dd?.sessions?.length > 0) {
+        dd.sessions.forEach(s => {
+          const dur = (s.duration || 0) / 3600;
+          if (s.location === 'home') hmHours += dur;
+          else offHours += dur;
+        });
+      } else if (duration > 0 && dd?.type !== 'sick' && dd?.type !== 'vacation') {
+        // Legacy fallback: no sessions, assume office
+        offHours = duration / 3600;
+      }
+      const dominantMode = hmHours > offHours ? 'home' : 'office';
+
       let bgCls = "bg-neutral-800/40 hover:bg-neutral-700/80";
-      // Heute: modus-abhängige Rand-Farbe
+      // Heute: Rand-Farbe basierend auf dominantem Modus des Tages
       let borderCls = "border border-neutral-700/30";
       if (isToday) {
-        borderCls = workMode === 'home'
+        borderCls = dominantMode === 'home'
           ? "border border-purple-500/80 bg-purple-500/10 shadow-[0_0_15px_rgba(168,85,247,0.15)]"
           : "border border-blue-500/80 bg-blue-500/10 shadow-[0_0_15px_rgba(59,130,246,0.15)]";
       }
@@ -562,11 +577,10 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
         subColor = "text-amber-500";
         subText = "Urlaub";
       } else if (duration > 0) {
-        // Arbeitstag mit Stunden
+        // Arbeitstag mit Stunden – Farbe nach dominantem Modus
         subText = (duration / 3600).toFixed(1) + "h";
-        // Dominanz-Regel: mehr Büro -> blue, mehr Home -> purple
-        dayColor = workMode === 'home' ? "text-purple-400" : "text-blue-400";
-        subColor = workMode === 'home' ? "text-purple-400" : "text-blue-400";
+        dayColor = dominantMode === 'home' ? "text-purple-400" : "text-blue-400";
+        subColor = dominantMode === 'home' ? "text-purple-400" : "text-blue-400";
       } else if (target > 0) {
         // Arbeitstag ohne Stunden
         subText = (target / 3600).toFixed(1) + "h";
