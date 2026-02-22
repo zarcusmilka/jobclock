@@ -141,8 +141,11 @@ custom_components/jobclock/frontend/src/jobclock-card.js
 After making changes, build the production bundle:
 ```bash
 cd custom_components/jobclock/frontend
-npm run build
+node build.mjs
 ```
+> [!TIP]
+> Use `node build.mjs` directly instead of `npm run build` — the script forces `process.exit(0)` after completion, which prevents the known Vite/Tailwind hang bug where file watchers keep the process alive.
+
 This runs Vite, which:
 - Processes `src/jobclock-card.js` as the entry point
 - Inlines Tailwind CSS from `src/style.css` via `@tailwindcss/vite`
