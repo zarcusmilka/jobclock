@@ -531,7 +531,13 @@ class JobClockCard extends (customElements.get("ha-panel-lovelace") ? LitElement
       const dd = this._data[dStr];
       const isToday = dStr === today;
       const target = dd?.target || 0;
-      const duration = dd?.duration || 0;
+      let duration = dd?.duration || 0;
+
+      const isWorking = this.hass.states[this.config.entity].attributes.is_working;
+      const sessionStart = this.hass.states[this.config.entity].attributes.session_start;
+      if (isToday && isWorking && sessionStart) {
+        duration += Math.floor((Date.now() - new Date(sessionStart).getTime()) / 1000);
+      }
 
       // Calculate dominant work mode from sessions
       let offHours = 0;

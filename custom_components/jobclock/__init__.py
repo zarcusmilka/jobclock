@@ -110,7 +110,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 hass,
                 webcomponent_name="jobclock-panel",
                 frontend_url_path="jobclock",
-                module_url="/jobclock_static/jobclock-panel.js?v=2.2.0",
+                module_url="/jobclock_static/jobclock-panel.js?v=2.2.1",
                 sidebar_title="JobClock",
                 sidebar_icon="mdi:briefcase-clock",
                 require_admin=False,
@@ -412,13 +412,9 @@ class JobClockInstance:
             d_str = current.isoformat()
             data = self.history.get(d_str, {"duration": 0, "type": "work", "sessions": []})
             
-            # If "today", add live
-            if current == dt_util.now().date() and self.is_working:
-                live_seconds = self.get_time_today_seconds() # includes stored + session
-                data = data.copy()
-                data["duration"] = live_seconds
-                # We don't append the "live" session to sessions list here, 
-                # frontend handles showing "currently active".
+            # Today's duration should only include completed sessions.
+            # The frontend is responsible for adding the active session duration for live display.
+            # This prevents double-counting if the frontend also calculates live duration.
             
             # Calculate Delta
             week_day_short = current.strftime("%a").lower()
@@ -520,13 +516,21 @@ class JobClockInstance:
             elif not condition_met and self.is_working:
                 delay = self.exit_delay.total_seconds()
                 if delay <= 0:
-                     await self._set_inactive(now)
+                     await self._set_inactive(now - self.exit_delay)
                 else:
                     self._pending_state = False
                     self._pending_start_time = now
                     self._timer_remove = async_track_point_in_time(
                         self.hass, self._timer_callback, now + self.exit_delay
                     )
+        
+        # Mid-session arrival at office: Split the session to record Home and Office separately
+        if condition_met and self.is_working and getattr(self, "_session_location", None) != "office":
+            # 1. Close current session (Home)
+            await self._set_inactive(now, manual=True) 
+            # 2. Start new session (Office) - _set_active will detect zone and set correct location
+            await self._set_active(now)
+
         self._notify_sensors()
 
     @callback
@@ -537,15 +541,31 @@ class JobClockInstance:
         if target_state is True:
             self.hass.async_create_task(self._set_active(now))
         elif target_state is False:
-            actual_end = self._pending_start_time or now
+            # The user wants "Work end time - departure delay" = "Recording end time"
+            # _pending_start_time is the time they left the zone.
+            # now is current time (leaving time + delay).
+            # So actual_end = (leaving time) - (delay)
+            leaving_time = self._pending_start_time or now
+            actual_end = leaving_time - self.exit_delay
             self.hass.async_create_task(self._set_inactive(actual_end))
 
     async def _set_active(self, start_time: datetime):
         self.is_working = True
         self.session_start = start_time
-        # Record location at session start (switch ON = Home Office, OFF = Office)
-        sw_state = self.hass.states.get(self.switch_entity)
-        self._session_location = "home" if (sw_state and sw_state.state == STATE_ON) else "office"
+        
+        # Record location at session start
+        # Priority 1: If condition_met (in work zone), it's "office"
+        if self.check_conditions():
+            self._session_location = "office"
+            # Sync switch: if we are in the zone, the switch must be OFF (Office)
+            sw_state = self.hass.states.get(self.switch_entity)
+            if sw_state and sw_state.state == STATE_ON:
+                await self.hass.services.async_call("homeassistant", "turn_off", {"entity_id": self.switch_entity})
+        else:
+            # Priority 2: Use the switch (Home Office ON = home, OFF = office)
+            sw_state = self.hass.states.get(self.switch_entity)
+            self._session_location = "home" if (sw_state and sw_state.state == STATE_ON) else "office"
+            
         self._notify_sensors()
         await self._async_save_data()
 
