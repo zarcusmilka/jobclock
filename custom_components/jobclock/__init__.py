@@ -110,7 +110,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 hass,
                 webcomponent_name="jobclock-panel",
                 frontend_url_path="jobclock",
-                module_url="/jobclock_static/jobclock-panel.js?v=2.2.1",
+                module_url="/jobclock_static/jobclock-panel.js?v=2.2.2",
                 sidebar_title="JobClock",
                 sidebar_icon="mdi:briefcase-clock",
                 require_admin=False,
@@ -210,8 +210,10 @@ async def ws_manual_toggle(hass, connection, msg):
         instance._pending_state = None
 
     if action == "start" and not instance.is_working:
+        instance._manual_session = True  # Mark as manually started (Home Office safe)
         await instance._set_active(now)
     elif action == "stop" and instance.is_working:
+        instance._manual_session = False
         await instance._set_inactive(now, manual=True)
 
     connection.send_result(msg["id"], {
@@ -285,6 +287,8 @@ class JobClockInstance:
         self._timer_remove = None
         self._pending_state = None
         self._pending_start_time: datetime | None = None
+        self._manual_session = False  # True if started via UI button (Home Office)
+        self._splitting_session = False  # Guard against mid-session split loop
         self._sensor_callbacks = set()
 
     async def async_initialize(self):
@@ -360,8 +364,10 @@ class JobClockInstance:
             self.last_update_date = dt_util.now().date().isoformat()
             
             self.is_working = data.get("is_working", False)
+            self._manual_session = data.get("manual_session", False)
             if self.is_working and data.get("session_start"):
                 self.session_start = dt_util.parse_datetime(data["session_start"])
+                self._session_location = data.get("session_location", "office")
             
             self._check_daily_reset()
 
@@ -370,7 +376,9 @@ class JobClockInstance:
         data = {
             "history": self.history,
             "is_working": self.is_working,
-            "session_start": self.session_start.isoformat() if self.session_start else None
+            "session_start": self.session_start.isoformat() if self.session_start else None,
+            "manual_session": self._manual_session,
+            "session_location": getattr(self, "_session_location", "office"),
         }
         await self._store.async_save(data)
 
@@ -505,6 +513,8 @@ class JobClockInstance:
         
         if not self._timer_remove:
             if condition_met and not self.is_working:
+                # Auto-start when entering work zone
+                self._manual_session = False  # This is an automatic (zone-based) session
                 delay = self.entry_delay.total_seconds()
                 if delay <= 0:
                     await self._set_active(now)
@@ -513,7 +523,9 @@ class JobClockInstance:
                     self._timer_remove = async_track_point_in_time(
                         self.hass, self._timer_callback, now + self.entry_delay
                     )
-            elif not condition_met and self.is_working:
+            elif not condition_met and self.is_working and not self._manual_session:
+                # Auto-stop ONLY for zone-based sessions
+                # Manual sessions (Home Office, UI button) are never auto-stopped
                 delay = self.exit_delay.total_seconds()
                 if delay <= 0:
                      await self._set_inactive(now - self.exit_delay)
@@ -524,12 +536,20 @@ class JobClockInstance:
                         self.hass, self._timer_callback, now + self.exit_delay
                     )
         
-        # Mid-session arrival at office: Split the session to record Home and Office separately
-        if condition_met and self.is_working and getattr(self, "_session_location", None) != "office":
-            # 1. Close current session (Home)
-            await self._set_inactive(now, manual=True) 
-            # 2. Start new session (Office) - _set_active will detect zone and set correct location
-            await self._set_active(now)
+        # Mid-session arrival at office: Split a HOME session into Home + Office
+        # Only triggers for manual (Home Office) sessions when arriving at the work zone
+        if (condition_met and self.is_working
+                and getattr(self, "_session_location", None) == "home"
+                and not self._splitting_session):
+            self._splitting_session = True
+            try:
+                # 1. Close current Home session
+                await self._set_inactive(now, manual=True)
+                # 2. Start new Office session (auto, zone-based)
+                self._manual_session = False
+                await self._set_active(now)
+            finally:
+                self._splitting_session = False
 
         self._notify_sensors()
 
