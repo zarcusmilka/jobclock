@@ -35,7 +35,10 @@
                     "daily_target_hours": "Tagesziel (Stunden)",
                     "work_zone": "Arbeits-Zone",
                     "home_office_switch": "Home-Office Schalter (Input Boolean)",
-                    "work_days": "Arbeitstage"
+                    "work_days": "Arbeitstage",
+                    "device_tracker": "Geräte-Tracker (optional)",
+                    "notify_service": "Benachrichtigungs-Dienst (z.B. notify.mobile_app_mein_handy)",
+                    "show_sidebar": "In Seitenleiste anzeigen"
                 }
             }
         }

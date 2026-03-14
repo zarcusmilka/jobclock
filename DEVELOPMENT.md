@@ -34,12 +34,12 @@ This file contains the development history and task tracking for the JobClock in
     - [x] Frontend: Replaced emojis with professional icons (mdi)
     - [x] Docs: Updated version and deployment instructions
 - [x] v2.0.4: Tailwind CSS Rewrite
-- [x] v2.2.2: Duration Fix & Location Sync
+- [x] v2.3.0: Duration Fix & Location Sync
     - [x] Backend: Prioritize zone detection for location
     - [x] Backend: Sync Home Office switch state
     - [x] Frontend: Include running session in calendar duration
-    - [x] Bump version to 2.2.2 everywhere
-    - [x] Push and Tag v2.2.2
+    - [x] Bump version to 2.3.0 everywhere
+    - [x] Push and Tag v2.3.0
     - [x] Frontend: Replaced custom CSS with Tailwind CSS CDN integration
     - [x] Frontend: Implemented new glassmorphic UI design
     - [x] Frontend: Disabled LitElement Shadow DOM to allow global Tailwind classes
@@ -47,7 +47,7 @@ This file contains the development history and task tracking for the JobClock in
 
 ## Feature Walkthrough History
 
-### v2.2.2 Duration Fix & Location Sync
+### v2.3.0 Duration Fix & Location Sync
 - **Live Duration in Calendar**: The calendar view now accounts for the currently active session when calculating the total duration for "Today", providing real-time feedback.
 - **Improved Location Logic**: Backend now prioritizes physical proximity (zones) for location detection and automatically turns off the "Home Office" switch if the user is detected in the office zone.
 
@@ -209,7 +209,7 @@ node scripts/build_ui.js
 *Note: This script will run `npm run build` cleanly using Vite, processing `src/jobclock-card.js` and inlining `src/style.css` via the native Vite Tailwind CSS plugin into a single module ready for Home Assistant.*
 
 ### 2. Update Version Numbers & Documentation
-Update the version string (e.g., `v2.2.2`) in the following **5 files** to force clients to clear their cache and keep docs in sync:
+Update the version string (e.g., `v2.3.0`) in the following **5 files** to force clients to clear their cache and keep docs in sync:
 1.  `custom_components/jobclock/manifest.json` ("version": "x.x.x")
 2.  `custom_components/jobclock/__init__.py` (inside `module_url` param)
 3.  `custom_components/jobclock/www/jobclock-panel.js` (inside `import` statement)
@@ -228,8 +228,8 @@ git commit -m "feat: description of changes"
 git push
 
 # 3. Create and Push Tag (Triggers Releases)
-git tag v2.2.2
-git push origin v2.2.2
+git tag v2.3.0
+git push origin v2.3.0
 ```
 
 ### 4. Post-Deployment

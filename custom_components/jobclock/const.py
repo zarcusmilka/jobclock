@@ -13,11 +13,18 @@ CONF_MIN_STAY = "min_stay_duration"
 CONF_DAILY_TARGET = "daily_target_hours"
 CONF_WORK_DAYS = "work_days"
 
+# Phase 3: Device Presence & Sidebar
+CONF_DEVICE_TRACKER = "device_tracker"
+CONF_NOTIFY_SERVICE = "notify_service"
+CONF_SHOW_SIDEBAR = "show_sidebar"
+
 DEFAULT_ENTRY_DELAY = 3
 DEFAULT_EXIT_DELAY = 5
 DEFAULT_MIN_STAY = 10
 DEFAULT_DAILY_TARGET = 8.0
 DEFAULT_WORK_DAYS = ["mon", "tue", "wed", "thu", "fri"]
+DEFAULT_SHOW_SIDEBAR = True
+DEVICE_NOTIFY_COOLDOWN = 1800  # 30 minutes between notifications
 
 ICON_WORK_TIME = "mdi:clock-check-outline"
 ICON_STATUS_ON = "mdi:briefcase"

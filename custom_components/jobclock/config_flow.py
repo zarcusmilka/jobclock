@@ -9,12 +9,15 @@ from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant, callback
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.selector import (
+    BooleanSelector,
     EntitySelector,
     EntitySelectorConfig,
     NumberSelector,
     NumberSelectorConfig,
     SelectSelector,
     SelectSelectorConfig,
+    TextSelector,
+    TextSelectorConfig,
 )
 
 from .const import (
@@ -27,11 +30,15 @@ from .const import (
     CONF_MIN_STAY,
     CONF_DAILY_TARGET,
     CONF_WORK_DAYS,
+    CONF_DEVICE_TRACKER,
+    CONF_NOTIFY_SERVICE,
+    CONF_SHOW_SIDEBAR,
     DEFAULT_ENTRY_DELAY,
     DEFAULT_EXIT_DELAY,
     DEFAULT_MIN_STAY,
     DEFAULT_DAILY_TARGET,
     DEFAULT_WORK_DAYS,
+    DEFAULT_SHOW_SIDEBAR,
     WORK_DAYS_OPTIONS,
 )
 
@@ -119,17 +126,7 @@ class JobClockOptionsFlowHandler(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
-        # Fix for HA 2024.12+: config_entry is a read-only property on the parent
-        # We must initialize the parent with it.
         super().__init__()
-        # We don't set self.config_entry manually if the parent handles it or if it's read-only.
-        # However, looking at recent HA source, standard is simply:
-        # super().__init__() and accessing self.config_entry (which is set by the handler system?)
-        # Wait, the error was "property 'config_entry' ... has no setter".
-        # This means we CANNOT do `self.config_entry = config_entry`.
-        # The flow manager sets it. We just need to store it if we need it, but usually we don't need to write to it.
-        # But wait, `async_step_init` uses it? No because we removed usage.
-        # Let's just remove the assignment.
         pass
 
     async def async_step_init(
@@ -137,6 +134,10 @@ class JobClockOptionsFlowHandler(config_entries.OptionsFlow):
     ) -> FlowResult:
         """Manage the options."""
         if user_input is not None:
+            # Clean up empty optional strings
+            for key in [CONF_DEVICE_TRACKER, CONF_NOTIFY_SERVICE]:
+                if key in user_input and not user_input[key]:
+                    user_input[key] = ""
             return self.async_create_entry(title="", data=user_input)
 
         # Get current config or options
@@ -147,7 +148,6 @@ class JobClockOptionsFlowHandler(config_entries.OptionsFlow):
             CONF_WORK_DAYS, self.config_entry.data.get(CONF_WORK_DAYS, DEFAULT_WORK_DAYS)
         )
         
-        # We allow editing other params too, ideally
         current_entry_delay = self.config_entry.options.get(
             CONF_ENTRY_DELAY, self.config_entry.data.get(CONF_ENTRY_DELAY, DEFAULT_ENTRY_DELAY)
         )
@@ -163,6 +163,17 @@ class JobClockOptionsFlowHandler(config_entries.OptionsFlow):
         )
         current_switch = self.config_entry.options.get(
              CONF_OFFICE_SWITCH, self.config_entry.data.get(CONF_OFFICE_SWITCH)
+        )
+
+        # New options
+        current_device_tracker = self.config_entry.options.get(
+            CONF_DEVICE_TRACKER, self.config_entry.data.get(CONF_DEVICE_TRACKER, "")
+        )
+        current_notify_service = self.config_entry.options.get(
+            CONF_NOTIFY_SERVICE, self.config_entry.data.get(CONF_NOTIFY_SERVICE, "")
+        )
+        current_show_sidebar = self.config_entry.options.get(
+            CONF_SHOW_SIDEBAR, self.config_entry.data.get(CONF_SHOW_SIDEBAR, DEFAULT_SHOW_SIDEBAR)
         )
 
         return self.async_show_form(
@@ -216,6 +227,22 @@ class JobClockOptionsFlowHandler(config_entries.OptionsFlow):
                             mode="dropdown",
                         )
                     ),
+                    # --- New: Device Presence & Sidebar ---
+                    vol.Optional(
+                        CONF_DEVICE_TRACKER, default=current_device_tracker,
+                        description={"suggested_value": current_device_tracker}
+                    ): EntitySelector(
+                        EntitySelectorConfig(domain="device_tracker")
+                    ),
+                    vol.Optional(
+                        CONF_NOTIFY_SERVICE, default=current_notify_service,
+                        description={"suggested_value": current_notify_service}
+                    ): TextSelector(
+                        TextSelectorConfig(type="text")
+                    ),
+                    vol.Required(
+                        CONF_SHOW_SIDEBAR, default=current_show_sidebar
+                    ): BooleanSelector(),
                 }
             ),
         )

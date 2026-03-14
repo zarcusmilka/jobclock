@@ -26,11 +26,16 @@ from .const import (
     CONF_MIN_STAY,
     CONF_DAILY_TARGET,
     CONF_WORK_DAYS,
+    CONF_DEVICE_TRACKER,
+    CONF_NOTIFY_SERVICE,
+    CONF_SHOW_SIDEBAR,
     DEFAULT_DAILY_TARGET,
     DEFAULT_WORK_DAYS,
     DEFAULT_ENTRY_DELAY,
     DEFAULT_EXIT_DELAY,
     DEFAULT_MIN_STAY,
+    DEFAULT_SHOW_SIDEBAR,
+    DEVICE_NOTIFY_COOLDOWN,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -100,25 +105,33 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 "/jobclock_static", path, cache_headers=True
             )
         ])
-        
-        # Register the panel
-        # Try to use panel_custom component
-        from homeassistant.components import panel_custom
-        
-        try:
-            await panel_custom.async_register_panel(
-                hass,
-                webcomponent_name="jobclock-panel",
-                frontend_url_path="jobclock",
-                module_url="/jobclock_static/jobclock-panel.js?v=2.2.2",
-                sidebar_title="JobClock",
-                sidebar_icon="mdi:briefcase-clock",
-                require_admin=False,
-            )
-            hass.data[DOMAIN]["jobclock_panel_registered"] = True
-        except Exception as e:
-            _LOGGER.error("Failed to register JobClock panel: %s", e)
-            # Fallback or older method if needed, but for now we catch to avoid boot loop
+        hass.data[DOMAIN]["jobclock_static_registered"] = True
+
+    # Register/update sidebar panel based on show_sidebar option
+    show_sidebar = entry.options.get(
+        CONF_SHOW_SIDEBAR, entry.data.get(CONF_SHOW_SIDEBAR, DEFAULT_SHOW_SIDEBAR)
+    )
+    sidebar_title = "JobClock" if show_sidebar else None
+
+    # Always try to register/re-register the panel
+    from homeassistant.components import panel_custom
+    try:
+        # Remove existing panel if it exists (for re-registration)
+        if "jobclock" in hass.data.get("frontend_panels", {}):
+            hass.components.frontend.async_remove_panel("jobclock")
+
+        await panel_custom.async_register_panel(
+            hass,
+            webcomponent_name="jobclock-panel",
+            frontend_url_path="jobclock",
+            module_url="/jobclock_static/jobclock-panel.js?v=2.3.0",
+            sidebar_title=sidebar_title,
+            sidebar_icon="mdi:briefcase-clock",
+            require_admin=False,
+        )
+        hass.data[DOMAIN]["jobclock_panel_registered"] = True
+    except Exception as e:
+        _LOGGER.error("Failed to register JobClock panel: %s", e)
 
     
     instance = JobClockInstance(hass, entry)
@@ -272,6 +285,10 @@ class JobClockInstance:
         self.daily_target = self.get_conf(CONF_DAILY_TARGET, DEFAULT_DAILY_TARGET)
         self.work_days = self.get_conf(CONF_WORK_DAYS, DEFAULT_WORK_DAYS)
 
+        # Device Presence & Notifications
+        self.device_tracker_entity = self.get_conf(CONF_DEVICE_TRACKER, None) or None
+        self.notify_service = self.get_conf(CONF_NOTIFY_SERVICE, None) or None
+
         self._store = Store(hass, STORAGE_VERSION, STORAGE_KEY_TEMPLATE.format(entry.entry_id))
         
         # State
@@ -289,6 +306,7 @@ class JobClockInstance:
         self._pending_start_time: datetime | None = None
         self._manual_session = False  # True if started via UI button (Home Office)
         self._splitting_session = False  # Guard against mid-session split loop
+        self._last_device_notification: float = 0  # Timestamp of last device notification
         self._sensor_callbacks = set()
 
     async def async_initialize(self):
@@ -296,19 +314,38 @@ class JobClockInstance:
         await self._load_data()
         await self._update_logic(init=True)
 
+        # Track person, switch, and zone state changes for work tracking
+        tracked_entities = [self.person_entity, self.switch_entity, self.zone_entity]
         self._listeners.append(
             async_track_state_change_event(
                 self.hass, 
-                [self.person_entity, self.switch_entity, self.zone_entity], 
+                tracked_entities, 
                 self._handle_state_change
             )
         )
+
+        # Track device tracker for presence notifications
+        if self.device_tracker_entity:
+            self._listeners.append(
+                async_track_state_change_event(
+                    self.hass,
+                    [self.device_tracker_entity],
+                    self._handle_device_state_change
+                )
+            )
+
+        # Listen for actionable notification responses (Companion App)
+        if self.device_tracker_entity and self.notify_service:
+            self._listeners.append(
+                self.hass.bus.async_listen(
+                    "mobile_app_notification_action",
+                    self._handle_notification_action
+                )
+            )
+
         self._listeners.append(
             self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, self._async_save_data)
         )
-        # Periodic save (every hour? or just close enough on stop)
-        # We also listen for time changes to update "duration today" visually?
-        # Ideally the sensor updates every minute if working.
         self._listeners.append(
             async_track_point_in_time(self.hass, self._update_periodic, dt_util.now() + timedelta(minutes=1))
         )
@@ -497,6 +534,90 @@ class JobClockInstance:
     async def _handle_state_change(self, event):
         await self._update_logic()
 
+    async def _handle_device_state_change(self, event):
+        """Handle device tracker state changes for presence notifications."""
+        if not self.notify_service or not self.device_tracker_entity:
+            return
+
+        new_state = event.data.get("new_state")
+        old_state = event.data.get("old_state")
+
+        if not new_state or not old_state:
+            return
+
+        # Device came online (not_home/unavailable → home)
+        device_online = new_state.state in ("home", "on", "online")
+        device_was_offline = old_state.state in ("not_home", "off", "offline", "unavailable", "unknown")
+
+        if not (device_online and device_was_offline):
+            return
+
+        # Already working? No notification needed
+        if self.is_working:
+            return
+
+        # Only notify on work days
+        now = dt_util.now()
+        week_day_short = now.strftime("%a").lower()
+        if week_day_short not in self.work_days:
+            return
+
+        # Cooldown: max 1 notification per 30 minutes
+        import time
+        if (time.time() - self._last_device_notification) < DEVICE_NOTIFY_COOLDOWN:
+            return
+        self._last_device_notification = time.time()
+
+        # Send actionable push notification
+        _LOGGER.info("JobClock [%s]: Device '%s' came online, sending reminder notification", self.name, self.device_tracker_entity)
+        try:
+            await self.hass.services.async_call(
+                "notify",
+                self.notify_service.replace("notify.", ""),  # "notify.mobile_app_x" → "mobile_app_x"
+                {
+                    "title": f"⏰ JobClock – {self.name}",
+                    "message": "Dein Gerät ist online. Aufzeichnung starten?",
+                    "data": {
+                        "actions": [
+                            {
+                                "action": f"JOBCLOCK_START_{self.entry.entry_id}",
+                                "title": "▶ Starten",
+                            },
+                            {
+                                "action": "JOBCLOCK_DISMISS",
+                                "title": "Ignorieren",
+                            },
+                        ],
+                        "tag": f"jobclock_reminder_{self.entry.entry_id}",
+                    },
+                },
+            )
+        except Exception as e:
+            _LOGGER.error("JobClock [%s]: Failed to send notification: %s", self.name, e)
+
+    async def _handle_notification_action(self, event):
+        """Handle actionable notification response from Companion App."""
+        action = event.data.get("action", "")
+        expected_action = f"JOBCLOCK_START_{self.entry.entry_id}"
+
+        if action != expected_action:
+            return  # Not for this instance
+
+        if self.is_working:
+            return  # Already recording
+
+        _LOGGER.info("JobClock [%s]: User tapped 'Start' in notification, starting session", self.name)
+        now = dt_util.now()
+
+        # Cancel any pending delay timers
+        if self._timer_remove:
+            self._timer_remove()
+            self._timer_remove = None
+            self._pending_state = None
+
+        self._manual_session = True  # Home Office safe
+        await self._set_active(now)
+
     async def _update_logic(self, init=False):
         condition_met = self.check_conditions()
         now = dt_util.now()
@@ -507,6 +628,10 @@ class JobClockInstance:
                 self._timer_remove = None
                 self._pending_state = None
             elif self._pending_state is False and condition_met:
+                self._timer_remove()
+                self._timer_remove = None
+                self._pending_state = None
+            elif self._pending_state == "split" and not condition_met:
                 self._timer_remove()
                 self._timer_remove = None
                 self._pending_state = None
@@ -535,21 +660,19 @@ class JobClockInstance:
                     self._timer_remove = async_track_point_in_time(
                         self.hass, self._timer_callback, now + self.exit_delay
                     )
-        
-        # Mid-session arrival at office: Split a HOME session into Home + Office
-        # Only triggers for manual (Home Office) sessions when arriving at the work zone
-        if (condition_met and self.is_working
-                and getattr(self, "_session_location", None) == "home"
-                and not self._splitting_session):
-            self._splitting_session = True
-            try:
-                # 1. Close current Home session
-                await self._set_inactive(now, manual=True)
-                # 2. Start new Office session (auto, zone-based)
-                self._manual_session = False
-                await self._set_active(now)
-            finally:
-                self._splitting_session = False
+            elif (condition_met and self.is_working
+                    and getattr(self, "_session_location", None) == "home"
+                    and not self._splitting_session):
+                # Mid-session arrival at office: Split a HOME session into Home + Office
+                # Only triggers for manual (Home Office) sessions when arriving at the work zone
+                delay = self.entry_delay.total_seconds()
+                if delay <= 0:
+                    await self._execute_split(now)
+                else:
+                    self._pending_state = "split"
+                    self._timer_remove = async_track_point_in_time(
+                        self.hass, self._timer_callback, now + self.entry_delay
+                    )
 
         self._notify_sensors()
 
@@ -568,6 +691,19 @@ class JobClockInstance:
             leaving_time = self._pending_start_time or now
             actual_end = leaving_time - self.exit_delay
             self.hass.async_create_task(self._set_inactive(actual_end))
+        elif target_state == "split":
+            self.hass.async_create_task(self._execute_split(now))
+
+    async def _execute_split(self, now):
+        self._splitting_session = True
+        try:
+            # 1. Close current Home session
+            await self._set_inactive(now, manual=True)
+            # 2. Start new Office session (auto, zone-based)
+            self._manual_session = False
+            await self._set_active(now)
+        finally:
+            self._splitting_session = False
 
     async def _set_active(self, start_time: datetime):
         self.is_working = True

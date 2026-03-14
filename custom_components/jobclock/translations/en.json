@@ -33,7 +33,12 @@
                     "exit_delay": "Exit Delay (min)",
                     "min_stay_duration": "Min Stay Duration (min)",
                     "daily_target_hours": "Daily Target (hours)",
-                    "work_days": "Work Days"
+                    "work_zone": "Work Zone",
+                    "home_office_switch": "Home Office Switch (Input Boolean)",
+                    "work_days": "Work Days",
+                    "device_tracker": "Device Tracker (optional)",
+                    "notify_service": "Notification Service (e.g. notify.mobile_app_my_phone)",
+                    "show_sidebar": "Show in Sidebar"
                 }
             }
         }
