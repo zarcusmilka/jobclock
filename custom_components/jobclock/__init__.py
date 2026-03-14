@@ -124,7 +124,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             hass,
             webcomponent_name="jobclock-panel",
             frontend_url_path="jobclock",
-            module_url="/jobclock_static/jobclock-panel.js?v=2.3.0",
+            module_url="/jobclock_static/jobclock-panel.js?v=2.2.3",
             sidebar_title=sidebar_title,
             sidebar_icon="mdi:briefcase-clock",
             require_admin=False,
